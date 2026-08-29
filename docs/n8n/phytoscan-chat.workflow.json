@@ -1,0 +1,126 @@
+{
+  "name": "PhytoScan Plant Doctor Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "phytoscan-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "chat-webhook",
+      "name": "Webhook (chat)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const hook = $('Webhook (chat)').first().json;\n\nconst history = Array.isArray(hook.history) ? hook.history : [];\nconst systemContent =\n  'You are the PhytoScan Plant Doctor, a helpful and precise botanist assistant. ' +\n  'You have a photo of the plant and its last health diagnosis. ' +\n  'Answer questions about watering, light, soil, pests, and treatment. Be concise and practical.';\n\nconst system = [{ role: 'system', content: systemContent }];\n\nconst imagePart = hook.imageUrl\n  ? [{ type: 'image_url', image_url: { url: hook.imageUrl } }]\n  : [];\n\nconst userMsg = {\n  role: 'user',\n  content: [...imagePart, { type: 'text', text: hook.message || '' }]\n};\n\nconst prior = history.map((m) => ({\n  role: m.role === 'assistant' ? 'assistant' : 'user',\n  content: String(m.content || '')\n}));\n\nreturn [{\n  json: {\n    model: process.env.OPENROUTER_MODEL_CHAT || 'google/gemma-4-31b-it:free',\n    messages: [...system, ...prior, userMsg]\n  }\n}];"
+      },
+      "id": "chat-build",
+      "name": "Build chat payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ={{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "X-Title",
+              "value": "PhytoScan App"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.model, messages: $json.messages }) }}"
+      },
+      "id": "chat-openrouter",
+      "name": "OpenRouter (chat)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json;\nconst reply = raw.choices && raw.choices[0] && raw.choices[0].message && raw.choices[0].message.content;\nif (!reply) throw new Error('No reply from model');\nreturn [{ json: { reply: String(reply) } }];"
+      },
+      "id": "chat-reply",
+      "name": "Extract reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ reply: $('Extract reply').first().json.reply }) }}"
+      },
+      "id": "chat-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    }
+  ],
+  "connections": {
+    "Webhook (chat)": {
+      "main": [
+        [
+          {
+            "node": "Build chat payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build chat payload": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter (chat)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter (chat)": {
+      "main": [
+        [
+          {
+            "node": "Extract reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract reply": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

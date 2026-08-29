@@ -1,0 +1,240 @@
+{
+  "name": "PhytoScan Analyze",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "phytoscan-analyze",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-in",
+      "name": "Webhook (analyze)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.lat }}",
+              "rightValue": "",
+              "operator": {
+                "type": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.lng }}",
+              "rightValue": "",
+              "operator": {
+                "type": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-location",
+      "name": "Has location?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "lat",
+              "value": "={{ $json.lat }}"
+            },
+            {
+              "name": "lon",
+              "value": "={{ $json.lng }}"
+            },
+            {
+              "name": "appid",
+              "value": "={{ $env.OPENWEATHERMAP_API_KEY }}"
+            },
+            {
+              "name": "units",
+              "value": "metric"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "weather",
+      "name": "Weather",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [620, 200]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [820, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble the OpenRouter payload. The Merge node passes through either\n// the weather result (location granted) or the webhook data (no location).\nconst hook = $('Webhook (analyze)').first().json;\nconst source = $('Merge').first().json;\n\nconst hasWeather =\n  source && source.main && (source.main.temp !== undefined || source.main.humidity !== undefined);\nconst temp = hasWeather ? source.main.temp : 'N/A';\nconst humidity = hasWeather ? source.main.humidity : 'N/A';\n\nreturn [{\n  json: {\n    base64Image: hook.base64Image || '',\n    imageUrl: hook.imageUrl || '',\n    scanId: hook.scanId || '',\n    temp: temp,\n    humidity: humidity,\n    lat: hook.lat || null,\n    lng: hook.lng || null\n  }\n}];"
+      },
+      "id": "build-context",
+      "name": "Build context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ={{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "X-Title",
+              "value": "PhytoScan App"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"={{ $env.OPENROUTER_MODEL }}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"You are the PhytoScan AI, a world-class botanist. Analyze the provided image and the environmental data (Temp: {{ $json.temp }}°C, Humidity: {{ $json.humidity }}%). Provide a JSON response with this exact structure: { \\\"identification\\\": { \\\"name\\\": \\\"string\\\", \\\"scientific_name\\\": \\\"string\\\", \\\"confidence\\\": \\\"0-100%\\\" }, \\\"health_assessment\\\": { \\\"status\\\": \\\"Healthy/Warning/Critical\\\", \\\"diagnosis\\\": \\\"string\\\", \\\"needs_water\\\": boolean, \\\"needs_medicine\\\": boolean }, \\\"light_analysis\\\": { \\\"current_light\\\": \\\"string\\\", \\\"recommendation\\\": \\\"string\\\" }, \\\"care_instructions\\\": { \\\"watering_frequency\\\": \\\"string\\\", \\\"soil_type\\\": \\\"string\\\", \\\"toxicity\\\": \\\"Safe/Toxic for pets\\\" }, \\\"environmental_impact\\\": \\\"How the current local weather ({{ $json.temp }}/{{ $json.humidity }}) affects this specific plant.\\\", \\\"fun_fact\\\": \\\"string\\\" } Be extremely precise. If there are spots on leaves, identify the specific fungus or pest. Return ONLY valid JSON, no markdown.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $json.base64Image }}\"\n          }\n        }\n      ]\n    }\n  ]\n}"
+      },
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1220, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json;\nconst content = raw.choices?.[0]?.message?.content;\nif (!content) throw new Error('No content from OpenRouter');\n\nconst cleaned = String(content).replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim();\nlet analysis;\ntry {\n  analysis = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('AI response was not valid JSON');\n}\n\nconst ctx = $('Build context').first().json;\n\nreturn [{\n  json: {\n    analysis: analysis,\n    imageUrl: ctx.imageUrl || '',\n    temp: ctx.temp,\n    humidity: ctx.humidity,\n    lat: ctx.lat,\n    lng: ctx.lng,\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "extract-parse",
+      "name": "Clean result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ analysis: $('Clean result').first().json.analysis, temp: $('Clean result').first().json.temp, humidity: $('Clean result').first().json.humidity }) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1620, 160]
+    }
+  ],
+  "connections": {
+    "Webhook (analyze)": {
+      "main": [
+        [
+          {
+            "node": "Has location?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has location?": {
+      "main": [
+        [
+          {
+            "node": "Weather",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Weather": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Build context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build context": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Clean result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

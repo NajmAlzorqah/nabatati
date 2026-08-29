@@ -4,7 +4,7 @@ Cali.ai-inspired plant health identification SPA. Next.js 16 App Router frontend
 
 ## Overview
 
-Build a mobile-first, single-page application that lets the user capture or upload a plant photo, sends it to an N8N webhook for AI analysis, renders the health/species/care result with a real-luminance "Light Meter" visualizer, persists each scan to a Supabase-backed Plant Passport, and supports a per-scan "Plant Doctor" follow-up chat. The SPA is fully functional in a **mock mode** (no backend env configured) so the entire flow works before the network services are live.
+Build a mobile-first, single-page application that lets the user capture or upload a plant photo, sends it to an N8N webhook for AI analysis, renders the health/species/care result with a real-luminance "Light Meter" visualizer, persists each scan to a Supabase-backed Plant Passport, and supports a per-scan "Plant Doctor" follow-up chat. The SPA depends on the N8N webhooks; when they are unset it surfaces a clear "not configured" error instead of returning placeholder data.
 
 ## Design Read
 
@@ -28,7 +28,7 @@ Build a mobile-first, single-page application that lets the user capture or uplo
 
 - **Dark-first, light-variant theme** — matches DESIGN.md color story and suits a fullscreen camera UI.
 - **Design tokens as Tailwind v4 `@theme` vars** in `globals.css`, straight from DESIGN.md frontmatter.
-- **Mock fallback** — when `N8N_WEBHOOK_URL` is unset, `lib/analysis.ts` routes to `lib/mock.ts` returning a deterministic, zod-validated result. When set, it POSTs to N8N. Same code path exercised either way.
+- **No mock fallback** — `lib/analysis.ts` always calls N8N. If `NEXT_PUBLIC_N8N_WEBHOOK_URL` is unset, it throws a clear "not configured" error rather than returning placeholder data; real errors/states are surfaced. The webhook URLs are client-called, so they use the `NEXT_PUBLIC_` prefix.
 - **Frontend uploads image to Supabase Storage first**, then sends the resulting `imageUrl` + a small base64 thumbnail to the N8N webhook. Keeps webhook payload small and aligns with the `<1MB` image constraint.
 - **Single-user passport** — no auth, no device-ID scoping. History reads directly from Supabase (`SELECT … ORDER BY created_at DESC LIMIT 10`). N8N GET `/history` documented as an optional alternative.
 - **Weather context optional**: geolocation requested only on user grant; coords are nullable. N8N calls OpenWeatherMap only when coords are present, otherwise prompt placeholders render `"N/A"`.
@@ -57,8 +57,7 @@ src/
     compress.ts      # canvas resize + JPEG <1MB base64
     luminance.ts     # average brightness from ImageData
     supabase.ts      # client + storage upload
-    analysis.ts      # N8N POST + zod validation
-    mock.ts          # deterministic mock when backend unset
+    analysis.ts      # N8N POST + zod validation + "not configured" guard
     types.ts         # PlantAnalysis zod schema + chat types
   hooks/
     useGeolocation.ts# optional coords, graceful denial
@@ -76,8 +75,8 @@ src/
 ## Environment (.env.local)
 
 ```
-N8N_WEBHOOK_URL=           # unset → mock mode
-N8N_CHAT_WEBHOOK_URL=      # unset → chat mock
+NEXT_PUBLIC_N8N_WEBHOOK_URL=          # unset → analysis error ("not configured")
+NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL=     # unset → chat error ("not configured")
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SUPABASE_BUCKET=plant-photos
@@ -99,16 +98,16 @@ OPENROUTER_MODEL_CHAT=google/gemma-4-31b-it:free
 - [ ] Task 3: `lib/types.ts` zod schema + `lib/config.ts` env parsing + `lib/compress.ts` image compression.
 - [ ] Task 4: `CameraView` (react-webcam fullscreen + gallery upload) + `useGeolocation`.
 - [ ] Task 5: `lib/luminance.ts` + `LightMeter` real-brightness visualizer; `StateMachine` idle/uploading/analyzing/result transitions.
-- [ ] Task 6: `lib/supabase.ts` + `lib/mock.ts` + `lib/analysis.ts` (N8N POST + zod validation + mock routing).
+- [ ] Task 6: `lib/supabase.ts` + `lib/analysis.ts` (N8N POST + zod validation + "not configured" guard).
 
 ### Checkpoint: Scan flow
-- [ ] Full mock scan works end-to-end (capture → compress → light meter → validated result)
+- [ ] Full scan works end-to-end (capture → compress → light meter → validated result)
 - [ ] Camera works in browser; base64 <1MB
 
 ### Phase 3: Passport + Chat
 - [ ] Task 7: `AnalysisResult` structured cards + Supabase Storage upload + passport row insert.
 - [ ] Task 8: `PlantPassport` history list (Supabase read, last 10).
-- [ ] Task 9: `PlantDoctorChat` per-scan thread (N8N `/chat` + mock; messages persisted).
+- [ ] Task 9: `PlantDoctorChat` per-scan thread (N8N `/chat`; error state when unconfigured; messages persisted).
 
 ### Checkpoint: Passport + Chat
 - [ ] New scan appears in passport; chat threads persist; reload keeps history
@@ -118,7 +117,7 @@ OPENROUTER_MODEL_CHAT=google/gemma-4-31b-it:free
 
 ### Checkpoint: Complete
 - [ ] All acceptance criteria met; build/tsc/lint green
-- [ ] Mock mode and (if configured) live mode verified
+- [ ] Unconfigured webhook → clear "not configured" error (no placeholder data); configured path verified
 - [ ] Ready for review
 
 ## Risks and Mitigations
@@ -128,8 +127,8 @@ OPENROUTER_MODEL_CHAT=google/gemma-4-31b-it:free
 | OpenRouter free model IDs rotate/deprecate | Med | Model id read from env, never hardcoded; `openrouter/free` fallback documented |
 | AI JSON output malformed/partial | Med | zod strict-parse + schema fallback + inline error state |
 | iOS camera (webkit getUserMedia) quirks | Med | Fullscreen mobile-first camera; graceful fallback to file upload; test on iOS/Android |
-| Supabase/Storage not yet provisioned | Low | Mock mode + graceful errors; tokens via env only |
-| N8N not yet configured | Low | Mock mode covers full flow; N8N deliverable included |
+| Supabase/Storage not yet provisioned | Low | localStorage fallback + graceful errors; tokens via env only |
+| N8N not yet configured | Low | Clear "not configured" error (no placeholder data) until webhook env is set |
 | Geolocation permission denied | Low | Coords optional; analysis runs without weather context |
 
 ## Open Questions

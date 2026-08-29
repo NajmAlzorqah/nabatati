@@ -1,0 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { History, RefreshCw } from "lucide-react";
+import { getRecentScans } from "@/lib/db";
+import type { ScanResult } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const healthTone: Record<string, string> = {
+  Healthy: "bg-[#dcfce7] text-[#166534] dark:bg-[#15803d]/20 dark:text-[#86efac]",
+  Warning: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/20 dark:text-amber-300",
+  Critical: "bg-[#fee2e2] text-[#991b1b] dark:bg-red-500/20 dark:text-red-300",
+};
+
+export function PlantPassport({
+  latestId,
+  onSelect,
+}: {
+  latestId?: string;
+  onSelect: (scan: ScanResult) => void;
+}) {
+  const [scans, setScans] = useState<ScanResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getRecentScans(10)
+      .then(setScans)
+      .catch((e) => setError(e.message));
+  }, [latestId]);
+
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-[#15803d]" />
+          <h2 className="font-heading text-[30px] leading-tight tracking-tight">
+            Plant Passport
+          </h2>
+        </div>
+        <button
+          onClick={() => getRecentScans(10).then(setScans).catch((e) => setError(e.message))}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          aria-label="Refresh passport"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Refresh
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">Could not load history: {error}</p>}
+
+      {scans === null ? (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      ) : scans.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-muted/40 px-6 py-10 text-center">
+          <p className="font-medium">No scans yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Capture or upload a plant photo to build your passport.
+          </p>
+        </div>
+      ) : (
+        <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
+          {scans.map((s, i) => (
+            <motion.li
+              key={s.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.04 }}
+            >
+              <button
+                onClick={() => onSelect(s)}
+                className="flex w-40 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-border bg-card text-left shadow-card transition-transform active:scale-[0.98]"
+              >
+                <div className="aspect-[4/3] w-full bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={s.imageUrl}
+                    alt={s.analysis.identification.name}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 p-3">
+                  <Badge
+                    className={`h-5 w-fit ${
+                      healthTone[s.analysis.health_assessment.status] ??
+                      healthTone.Healthy
+                    }`}
+                  >
+                    {s.analysis.health_assessment.status}
+                  </Badge>
+                  <p className="truncate text-sm font-medium">
+                    {s.analysis.identification.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(s.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </button>
+            </motion.li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
