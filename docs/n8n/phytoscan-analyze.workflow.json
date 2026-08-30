@@ -19,6 +19,19 @@
     },
     {
       "parameters": {
+        "jsCode": "const hook = $('Webhook (analyze)').first().json;\n\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\n\n// A stable per-scan session id for the memory node. The app sends scanId for\n// chat; for scans we derive one from the image if absent so memory stays keyed\n// consistently per plant.\nconst scanId = typeof hook.scanId === 'string' && hook.scanId.trim() !== ''\n  ? hook.scanId\n  : 'scan-' + (typeof hook.imageUrl === 'string' ? hook.imageUrl : raw).slice(0, 64);\n\nreturn [{ json: {\n  ...hook,\n  scanId,\n  url: dataUrl ? '' : raw,\n  dataUrl,\n  imageUrl: raw\n} }];"
+      },
+      "id": "resolve-image",
+      "name": "Resolve image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        420
+      ]
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {},
           "combinator": "and",
@@ -46,7 +59,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        420,
+        620,
         300
       ]
     },
@@ -78,8 +91,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        620,
-        200
+        820,
+        140
       ],
       "credentials": {
         "httpQueryAuth": {
@@ -98,80 +111,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2,
       "position": [
-        820,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Assemble the OpenRouter payload. The Merge node passes through either\n// the weather result (location granted) or the webhook data (no location).\nconst hook = $('Webhook (analyze)').first().json;\nconst source = $('Merge').first().json;\n\nconst hasWeather =\n  source && source.main && (source.main.temp !== undefined || source.main.humidity !== undefined);\nconst temp = hasWeather ? source.main.temp : 'N/A';\nconst humidity = hasWeather ? source.main.humidity : 'N/A';\n\nconst prompt = `You are the PhytoScan AI, a world-class botanist. Analyze the provided image and the environmental data (Temp: ${temp}°C, Humidity: ${humidity}%).\n\nRespond with ONE JSON object, in exactly this schema, following the types EXACTLY:\n{\n  \"identification\": {\n    \"name\": \"string (common plant name)\",\n    \"scientific_name\": \"string (binomial name)\",\n    \"confidence\": \"string stating a percentage, e.g. \\\"87%\\\" (must end with the % sign)\"\n  },\n  \"health_assessment\": {\n    \"status\": \"exactly one of: Healthy, Warning, Critical\",\n    \"diagnosis\": \"string\",\n    \"needs_water\": \"boolean (true or false)\",\n    \"needs_medicine\": \"boolean (true or false)\"\n  },\n  \"light_analysis\": {\n    \"current_light\": \"string\",\n    \"recommendation\": \"string\"\n  },\n  \"care_instructions\": {\n    \"watering_frequency\": \"string\",\n    \"soil_type\": \"string\",\n    \"toxicity\": \"exactly one of: Safe, Toxic for pets\"\n  },\n  \"environmental_impact\": \"string — how the current local weather (${temp}/${humidity}) affects this specific plant.\",\n  \"fun_fact\": \"string\"\n}\n\nHARD RULES:\n- Return ONLY a valid JSON object — no markdown, no code fences, no preface, no trailing text.\n- confidence MUST be a string ending with \"%\".\n- status MUST be exactly one of Healthy / Warning / Critical.\n- toxicity MUST be exactly one of Safe / Toxic for pets.\n- needs_water and needs_medicine MUST be JSON booleans (true/false), never strings.\n- Do not use ellipses or placeholders — always fill real text values.\n- If there are spots or lesions on leaves, name the specific fungus, pest, or deficiency in \"diagnosis\".`;\n\nconst encoded = $('Encode image').first().json;\nconst imagePart = encoded && encoded.imageUrl\n  ? [{ type: 'image_url', image_url: { url: encoded.imageUrl } }]\n  : [];\n\nreturn [{\n  json: {\n    messages: [{\n      role: 'user',\n      content: [{ type: 'text', text: prompt }, ...imagePart]\n    }],\n    scanId: hook.scanId || '',\n    imageUrl: hook.imageUrl || '',\n    temp: temp,\n    humidity: humidity,\n    lat: hook.lat || null,\n    lng: hook.lng || null\n  }\n}];"
-      },
-      "id": "build-context",
-      "name": "Build context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
         1020,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Title",
-              "value": "PhytoScan App"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}"
-      },
-      "id": "openrouter",
-      "name": "OpenRouter",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1220,
-        200
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "",
-          "name": "OpenRouter API key"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const raw = $input.all()[0].json;\nconst msg = raw.choices?.[0]?.message ?? {};\nconst content = Array.isArray(msg.content)\n  ? msg.content.map((part) => part.text ?? part.content ?? '').join('')\n  : (msg.content || msg.reasoning || '');\n\nif (!String(content).trim()) {\n  throw new Error('No content from OpenRouter. Raw: ' + JSON.stringify(raw).slice(0, 400));\n}\n\nconst cleaned = String(content).replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim();\nlet analysis;\ntry {\n  analysis = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('AI response was not valid JSON: ' + cleaned.slice(0, 200));\n}\n\nconst ctx = $('Build context').first().json;\n\nreturn [{\n  json: {\n    analysis: analysis,\n    imageUrl: ctx.imageUrl || '',\n    temp: ctx.temp,\n    humidity: ctx.humidity,\n    lat: ctx.lat,\n    lng: ctx.lng,\n    created_at: new Date().toISOString()\n  }\n}];"
-      },
-      "id": "extract-parse",
-      "name": "Clean result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1420,
-        160
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ analysis: $('Clean result').first().json.analysis, temp: $('Clean result').first().json.temp, humidity: $('Clean result').first().json.humidity }) }}"
-      },
-      "id": "respond",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1620,
-        160
+        140
       ]
     },
     {
@@ -195,33 +136,148 @@
       "typeVersion": 4.2,
       "position": [
         1020,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resolved = $('Resolve image').first().json;\nconst prepared = $('Prepare agent input').first().json;\n\n// If we already fetched the image as binary via the HTTP node, keep it.\nconst input = $input.all()[0];\nconst hasBinary = !!(input && input.binary && Object.keys(input.binary).length > 0);\n\nif (hasBinary) {\n  return [{ json: prepared, binary: input.binary }];\n}\n\n// Otherwise the payload was a base64 data: URL. Convert it to a binary image\n// so the AI Agent's passthroughBinaryImages can forward it to the model.\nif (resolved.dataUrl) {\n  const match = /^data:([^;]+);base64,(.+)$/.exec(resolved.dataUrl);\n  if (match) {\n    const mime = match[1] || 'image/jpeg';\n    const b64 = match[2];\n    return [{ json: prepared, binary: { data: {\n      data: b64,\n      mimeType: mime,\n      fileName: prepared.imageUrl.split('/').pop() || 'plant.jpg'\n    } } }];\n  }\n}\n\nthrow new Error('No image received. imageUrl: ' + (resolved.imageUrl || '(none)') + ' | base64Image: ' + (resolved.dataUrl ? '(data URL)' : '(none)'));"
+      },
+      "id": "encode-image",
+      "name": "Prepare binary image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
         60
       ]
     },
     {
       "parameters": {
-        "jsCode": "const resolved = $('Resolve image').first().json;\nif (resolved.dataUrl) return [{ json: { imageUrl: resolved.dataUrl } }];\n\nconst item = $input.all()[0];\nif (item && item.binary && item.binary.data) {\n  const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n  if (buffer && buffer.length > 0) {\n    const mime = item.binary.data.mimeType || 'image/jpeg';\n    return [{ json: { imageUrl: 'data:' + mime + ';base64,' + buffer.toString('base64') } }];\n  }\n}\n\nconst hook = $('Webhook (analyze)').first().json;\nthrow new Error('No image received. Webhook keys: ' + Object.keys(hook).join(', ') + ' | imageUrl: ' + (hook.imageUrl || '(none)') + ' | base64Image: ' + (hook.base64Image ? '(present, length ' + String(hook.base64Image).length + ')' : '(none)'));"
+        "jsCode": "const source = $('Merge').first().json;\nconst resolved = $('Resolve image').first().json;\n\nconst hasWeather = source && source.main &&\n  (source.main.temp !== undefined || source.main.humidity !== undefined);\nconst temp = hasWeather ? source.main.temp : 'N/A';\nconst humidity = hasWeather ? source.main.humidity : 'N/A';\n\nconst chatInput =\n  'Analyze this plant photo. Identify the species and assess its health using the schema provided. ' +\n  'Environmental context \u2014 Temperature: ' + temp + '\u00b0C, Humidity: ' + humidity + '%. ' +\n  'If no temperature/humidity is provided, reason from the image alone and leave the environmental_impact as a general statement.';\n\nreturn [{ json: {\n  chatInput,\n  temp,\n  humidity,\n  scanId: resolved.scanId,\n  imageUrl: resolved.imageUrl,\n  lat: resolved.lat,\n  lng: resolved.lng\n} }];"
       },
-      "id": "encode-image",
-      "name": "Encode image",
+      "id": "prepare-agent",
+      "name": "Prepare agent input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1020,
-        130
+        1220,
+        200
       ]
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook (analyze)').first().json;\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\nreturn [{ json: { ...hook, url: dataUrl ? '' : raw, dataUrl } }];"
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are the PhytoScan AI, a world-class botanist. You analyze photographs of plants and return a structured health + species assessment. Use the image (and any environmental context given) to fill every field. Return ONLY valid JSON wrapped in a single \"output\" object, e.g. {\"output\": { \"identification\": {...}, \"health_assessment\": {...}, ... }} \u2014 put the entire assessment (identification, health_assessment, light_analysis, care_instructions, environmental_impact, fun_fact) inside that \"output\" key. No markdown, no code fences, no preface, no trailing text. confidence must be a string ending with a '%'. status must be exactly one of Healthy/Warning/Critical. toxicity must be exactly one of Safe/Toxic for pets. needs_water and needs_medicine must be JSON booleans.",
+          "passthroughBinaryImages": true
+        }
       },
-      "id": "resolve-image",
-      "name": "Resolve image",
+      "id": "agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "options": {}
+      },
+      "id": "nvidia-model",
+      "name": "NVIDIA Nemotron Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ],
+      "credentials": {
+        "nvidiaApi": {
+          "id": "",
+          "name": "NVIDIA Nemotron"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "options": {}
+      },
+      "id": "openrouter-model",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        500
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "",
+          "name": "OpenRouter"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.scanId }}",
+        "contextWindowLength": 10
+      },
+      "id": "memory",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{\"identification\": {\"name\": \"Monstera Deliciosa\", \"scientific_name\": \"Monstera deliciosa\", \"confidence\": \"High\"}, \"health_assessment\": {\"status\": \"Healthy\", \"diagnosis\": \"Healthy, no issues detected\", \"needs_water\": true, \"needs_medicine\": false}, \"light_analysis\": {\"current_light\": \"Bright, indirect sunlight\", \"recommendation\": \"Place near a south-facing window with a sheer curtain\"}, \"care_instructions\": {\"watering_frequency\": \"Once a week\", \"soil_type\": \"Well-draining potting mix\", \"toxicity\": \"Toxic for pets\"}, \"environmental_impact\": \"Air-purifying houseplant\", \"fun_fact\": \"The split leaves are called fenestrations.\"}"
+      },
+      "id": "output-parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1700,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nconst agentCtx = $('Prepare agent input').first().json;\nconst wrapped = item.output || item.json || item;\nconst parsed = (wrapped && wrapped.output && typeof wrapped.output === 'object') ? wrapped.output : wrapped;\n\nreturn [{ json: {\n  analysis: parsed,\n  imageUrl: agentCtx.imageUrl || '',\n  temp: agentCtx.temp,\n  humidity: agentCtx.humidity,\n  scanId: agentCtx.scanId || '',\n  created_at: new Date().toISOString()\n} }];"
+      },
+      "id": "clean-result",
+      "name": "Clean result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        420,
-        420
+        1800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ analysis: $('Clean result').first().json.analysis, temp: $('Clean result').first().json.temp, humidity: $('Clean result').first().json.humidity }) }}"
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        200
       ]
     }
   ],
@@ -231,6 +287,17 @@
         [
           {
             "node": "Resolve image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve image": {
+      "main": [
+        [
+          {
+            "node": "Has location?",
             "type": "main",
             "index": 0
           }
@@ -270,6 +337,17 @@
       "main": [
         [
           {
+            "node": "Prepare agent input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare agent input": {
+      "main": [
+        [
+          {
             "node": "Fetch image",
             "type": "main",
             "index": 0
@@ -277,18 +355,29 @@
         ]
       ]
     },
-    "Build context": {
+    "Fetch image": {
       "main": [
         [
           {
-            "node": "OpenRouter",
+            "node": "Prepare binary image",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenRouter": {
+    "Prepare binary image": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
       "main": [
         [
           {
@@ -310,34 +399,45 @@
         ]
       ]
     },
-    "Fetch image": {
-      "main": [
+    "NVIDIA Nemotron Chat Model": {
+      "ai_languageModel": [
         [
           {
-            "node": "Encode image",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Encode image": {
-      "main": [
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
         [
           {
-            "node": "Build context",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
             "index": 0
           }
         ]
       ]
     },
-    "Resolve image": {
-      "main": [
+    "Structured Output Parser": {
+      "ai_outputParser": [
         [
           {
-            "node": "Has location?",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_outputParser",
             "index": 0
           }
         ]

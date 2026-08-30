@@ -1,6 +1,11 @@
 # N8N Backend Setup — PhytoScan
 
-PhytoScan uses **N8N** as a lightweight backend orchestrator. N8N exposes two webhooks the app calls, and calls **OpenRouter** (vision LLM) for the AI. Persistence (the Plant Passport + Plant Doctor chat history) is handled directly by the **frontend against Supabase** — N8N does not talk to Supabase. N8N's only job is: receive scan/chat payload → call the model → return cleaned JSON.
+PhytoScan uses **N8N** as a lightweight backend orchestrator. N8N exposes two webhooks the app calls, and each workflow uses an **n8n AI Agent** backed by a vision chat model. Two model providers are available and are **switched manually in the n8n editor** (the app itself never selects a provider):
+
+- **NVIDIA Nemotron** (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`) — wired as the **primary** Chat Model.
+- **OpenRouter** (same model ID, routed through OpenRouter) — wired as the **Fallback** model slot.
+
+Persistence (the Plant Passport + Plant Doctor chat history) is handled directly by the **frontend against Supabase** — N8N does not talk to Supabase. N8N also keeps a per-scan **memory** (Simple Memory sub-node) so the Plant Doctor holds conversation context across turns within a scan.
 
 There are two workflows (both live in `docs/n8n/`):
 
@@ -9,14 +14,17 @@ There are two workflows (both live in `docs/n8n/`):
 | Analyze | `phytoscan-analyze.workflow.json` | `POST /phytoscan-analyze` | Identify + assess a plant from a photo (+ optional local weather) |
 | Plant Doctor Chat | `phytoscan-chat.workflow.json` | `POST /phytoscan-chat` | Multi-turn follow-up Q&A about a scan |
 
-> The `*workflow.json` files are **manual hand-authored imports**. Node `typeVersion` values target a recent n8n (1.5x+). If an import is rejected, re-create the workflow in the editor and adjust `typeVersion` / node types to match your installed version — the node wiring is documented below.
+> **Requires n8n 2.22+** (the NVIDIA Nemotron Chat Model node shipped in n8n 2.22.0). The OpenRouter Chat Model node requires n8n 1.77+.
+>
+> The `*workflow.json` files are **manual hand-authored imports**. If an import is rejected, re-create the workflow in the editor and adjust `typeVersion` / node types to match your installed version — the node wiring is documented below.
 
 ---
 
 ## 1. Prerequisites
 
-- An **N8N** instance (self-hosted Docker or n8n.cloud) reachable from your app's browser environment (must be HTTPS if the app is served over HTTPS).
-- An **OpenRouter** account + API key (free vision models: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, `google/gemma-4-31b-it:free`, `minimax/minimax-m3:free`).
+- An **N8N** instance (**version 2.22 or newer** — self-hosted Docker or n8n.cloud) reachable from your app's browser environment (must be HTTPS if the app is served over HTTPS).
+- An **OpenRouter** account + API key (may be blank if you only use NVIDIA).
+- An **NVIDIA** account + API key from [build.nvidia.com](https://build.nvidia.com) (may be blank if you only use OpenRouter).
 - Optional — an **OpenWeatherMap** API key (free tier) to enrich scans with local weather when the user grants location.
 - A **Supabase** project (Postgres + Storage) for the Plant Passport + chat history. See `docs/supabase/schema.sql`.
 
@@ -36,8 +44,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_SUPABASE_BUCKET=plant-photos
 
-# Informational only — the model is hardcoded in the n8n OpenRouter node
-# (see "Credentials" section). The frontend never reads these.
+# Informational only — the model is hardcoded in the n8n NVIDIA Nemotron node
+# ("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"). The frontend never reads these.
 OPENROUTER_MODEL=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 OPENROUTER_MODEL_CHAT=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 ```
@@ -48,16 +56,17 @@ OPENROUTER_MODEL_CHAT=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 
 ## 3. Credentials (instead of environment variables)
 
-> **n8n cloud blocks `$env`.** n8n 2.x defaults `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`, and on n8n **cloud** you cannot change it (the error literally says to ask the administrator). So the workflows never use `$env` — secrets live in **n8n credentials**, and non-secret values (model IDs) are hardcoded in the nodes.
+> **n8n cloud blocks `$env`.** n8n 2.x defaults `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`, and on n8n **cloud** you cannot change it. So the workflows never use `$env` — secrets live in **n8n credentials**, and non-secret values (model IDs) are hardcoded in the nodes.
 
 Create these credentials (n8n dashboard → **Credentials → Add**):
 
 | Credential type | Name | Purpose | Fields |
 |---|---|---|---|
 | **Query Auth** | `OpenWeatherMap API key` (optional) | Weather node appid | Name: `appid`, Value: your OpenWeather key |
-| **Header Auth** | `OpenRouter API key` | OpenRouter auth | Name: `Authorization`, Value: `Bearer sk-or-...` |
+| **NVIDIA Nemotron** | `NVIDIA Nemotron` | NVIDIA chat model auth | Base URL: `https://integrate.api.nvidia.com/v1` (default), API Key: your build.nvidia.com key |
+| **OpenRouter API** | `OpenRouter` | OpenRouter chat model auth | API Key: `sk-or-...`, URL: `https://openrouter.ai/api/v1` |
 
-Header Auth adds an `Authorization` header automatically; the `X-Title`/`PhytoScan App` header is already baked into the node. The model is `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (vision-capable) hardcoded in the OpenRouter body — change it there if you want a different model.
+The **NVIDIA Nemotron** node uses its `nvidiaApi` credential (fields: `url`, `apiKey`); the **OpenRouter Chat Model** node uses its `openRouterApi` credential (fields: `apiKey`, `url`). Both point at OpenAI-compatible endpoints, so they plug straight into the AI Agent's Chat Model / Fallback Model slots.
 
 ---
 
@@ -65,34 +74,40 @@ Header Auth adds an `Authorization` header automatically; the `X-Title`/`PhytoSc
 
 1. n8n dashboard → **Workflows** → **⋮ menu** → **Import from File**.
 2. Import `docs/n8n/phytoscan-analyze.workflow.json` and `docs/n8n/phytoscan-chat.workflow.json`.
-3. Open each workflow and attach the credentials: on the **OpenRouter** nodes select the `OpenRouter API key` (Header Auth) credential; on the **Weather** node select the `OpenWeatherMap API key` (Query Auth) credential. Credentials are referenced by name/id on `httpHeaderAuth` / `httpQueryAuth` in the imported JSON — re-select them if n8n flags them as missing.
+3. Open each workflow and attach the credentials: on the **NVIDIA Nemotron Chat Model** node select the `NVIDIA Nemotron` (nvidiaApi) credential; on the **OpenRouter Chat Model** node select the `OpenRouter` (openRouterApi) credential; on the **Weather** node select the `OpenWeatherMap API key` (Query Auth) credential. Credentials are referenced by name on the nodes in the imported JSON — re-select them if n8n flags them as missing.
 4. Click **Active** toggle to turn it on, or **Execute Workflow** to test. The production webhook URL is `…/webhook/phytoscan-analyze` (or `…/webhook-test/…` while testing — use the `webhook-test` path in the app only for dev).
+
+### Switching between NVIDIA and OpenRouter
+
+Both providers are wired to each AI Agent. The **NVIDIA Nemotron Chat Model** is the primary **Chat Model** input; the **OpenRouter Chat Model** is the **Fallback Model** input (used automatically if the primary errors). To switch which one actually answers, drag the other node onto the **Chat Model** slot (and the first one onto the **Fallback** slot) in the editor. The model ID is `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` on both nodes — edit it per-node if you want different models per provider.
 
 ---
 
 ## 5. Workflow: Analyze (`phytoscan-analyze`)
 
-Node chain:
+Node chain (AI Agent based):
 
 ```
 Webhook (POST, path=phytoscan-analyze)
-  │
-  ├─ Resolve image (Code: normalizes payload → `url` (https) or `dataUrl` (base64 `data:` URI);
-  │      accepts `imageUrl` or legacy `base64Image`; passes lat/lng through)
-  ├─ Has location? (If: lat & lng not empty)
-  │     ├─ Weather (OpenWeather GET, lat/lon + Query Auth appid)  → Merge (input 0)
-  │     └─ false → Merge (input 1)
-  │
-  ├─ Merge (append: weather first, webhook fallback)
-  ├─ Fetch image (HTTP Request → File: downloads the image URL in n8n, no provider URL-fetching; never fails the run)
-  ├─ Encode image (Code: resolves the binary buffer via `this.helpers.getBinaryDataBuffer()` — required because n8n cloud stores binary as `filesystem-v2` references, not inline base64 — then emits a `data:` URI; or passes a `dataUrl` through)
-  ├─ Build context (Code: builds `messages[]` embedding the image as a data URI, plus env data — no env-var access here)
-  ├─ OpenRouter (POST /api/v1/chat/completions, Header Auth credential, body = `={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}`)
-  ├─ Clean result (Code: strip fence, JSON.parse → { analysis, temp, humidity, … })
-  └─ Respond to Webhook ({ analysis, temp, humidity })
+  → Resolve image (Code: normalizes payload → `url` (https) or `dataUrl` (base64 `data:` URI);
+        accepts `imageUrl` or legacy `base64Image`; computes a per-scan `scanId` for memory)
+  → Has location? (If: lat & lng not empty)
+        ├─ Weather (OpenWeather GET, lat/lon + Query Auth appid) → Merge (input 0)
+        └─ false → Merge (input 1)
+  → Merge (append: weather first, webhook fallback)
+  → Prepare agent input (Code: builds `chatInput` text with weather + instructions)
+  → Fetch image (HTTP Request → File: downloads the image URL, never fails)
+  → Prepare binary image (Code: if the payload was a base64 `data:` URL, converts it to a
+        binary image for the agent; otherwise keeps the fetched binary)
+  → AI Agent (Chat Model = NVIDIA Nemotron · Fallback = OpenRouter · Memory = Simple Memory
+        keyed by scanId · Structured Output Parser = PlantAnalysis schema)
+  → Clean result (Code: unwraps parsed `output` → { analysis, temp, humidity })
+  → Respond to Webhook ({ analysis, temp, humidity })
 ```
 
-> **No `$env` anywhere — by design.** n8n 2.x's Code-node task runner blocks `process` (`process is not defined`), and n8n cloud blocks `$env` in expressions (`access to env vars denied`, `N8N_BLOCK_ENV_ACCESS_IN_NODE`). Secrets go in n8n credentials (Header Auth / Query Auth); the `messages[]` array is built in the Code node and interpolated into the OpenRouter body via `$json.messages`. The Plant Doctor chat workflow follows the same pattern.
+> The image reaches the model via the AI Agent's **"Automatically Passthrough Binary Images"** option (default on) — no base64 `data:` URI embedding and no `$env` anywhere. Secrets sit in the `nvidiaApi` / `openRouterApi` credentials; the model ID is hardcoded on the NVIDIA node.
+
+**Structured Output Parser config (n8n ≥ 1.3):** set **Schema Type = From JSON** and paste a **JSON string** (an example *instance* of the PlantAnalysis shape, e.g. `{"identification":{"name":"...","scientific_name":"...","confidence":"High"}, ...}`) into `jsonSchemaExample` — n8n `JSON.parse`s this string to infer the schema and forces every field required. Because n8n 1.3 wraps the schema in an `output` key, the agent's **system message instructs the model to return `{"output": { ...assessment... }}`**, and `Clean result` unwraps that `output` key before responding. If the model's JSON ever fails to match, the parser throws the "Error in sub-node Structured Output Parser" — check that (a) `jsonSchemaExample` is a valid JSON string (not an object), and (b) the model is wrapping its answer in `output`.
 
 **Webhook payload (from the app):** The image travels as a **URL only** — a public Supabase Storage URL, or the base64 `data:` URL when Supabase is unconfigured.
 
@@ -127,18 +142,21 @@ The app validates this against its zod `PlantAnalysisSchema` before rendering.
 
 ## 6. Workflow: Plant Doctor Chat (`phytoscan-chat`)
 
-Node chain:
+Node chain (AI Agent based):
 
 ```
 Webhook (POST, path=phytoscan-chat)
-  → Resolve image (Code: normalize `imageUrl`/`base64Image` → `url` or `dataUrl`)
-  → Fetch image (HTTP Request → File, never fails the run)
-  → Encode image (Code: `getBinaryDataBuffer()` → `data:` URI, or `dataUrl` passthrough)
-  → Build chat payload (Code: OpenRouter messages from message + history + image)
-  → OpenRouter (POST /api/v1/chat/completions)
-  → Extract reply (Code: choices[0].message.content / reasoning)
+  → Resolve image (Code: normalize `imageUrl`/`base64Image` → `url` or `dataUrl`; keep scanId/message/history)
+  → Prepare agent input (Code: builds `chatInput` from the current message + frontend-supplied history as a fallback)
+  → Fetch image (HTTP Request → File, never fails)
+  → Prepare binary image (Code: converts a base64 `data:` URL to binary, or keeps the fetched binary)
+  → AI Agent (Chat Model = NVIDIA Nemotron · Fallback = OpenRouter · Memory = Simple Memory
+        keyed by scanId)
+  → Extract reply (Code: reads the agent's `output` → { reply })
   → Respond to Webhook ({ reply })
 ```
+
+**Memory:** The **Simple Memory** sub-node (`memoryBufferWindow`) is keyed by `scanId` (`sessionKey: ={{ $json.scanId }}`). Because the app sends the same `scanId` for every follow-up in a scan, n8n holds the conversation across turns on its own. The chat **history is still persisted to Supabase by the frontend** (see `chat_messages` table in `docs/supabase/schema.sql`) for the app's own UI / reload; n8n's memory is an independent in-workflow store.
 
 **Webhook payload (from the app):**
 
@@ -153,7 +171,7 @@ Webhook (POST, path=phytoscan-chat)
 
 **Response:** `{ "reply": "…the assistant's answer…" }`
 
-The chat **history and messages are persisted to Supabase by the frontend** (see `chat_messages` table in `docs/supabase/schema.sql`). N8N is stateless here.
+The chat **history and messages are persisted to Supabase by the frontend** (see `chat_messages` table in `docs/supabase/schema.sql`) for the app's UI and reload. In addition, the workflow's **Simple Memory** node keeps a per-scan conversation buffer inside n8n so the AI Agent has context across turns within a scan.
 
 ---
 

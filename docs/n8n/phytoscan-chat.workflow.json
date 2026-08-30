@@ -12,95 +12,17 @@
       "name": "Webhook (chat)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        240,
-        300
-      ]
+      "position": [240, 300]
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook (chat)').first().json;\n\nconst history = Array.isArray(hook.history) ? hook.history : [];\nconst systemContent =\n  'You are the PhytoScan Plant Doctor, a helpful and precise botanist assistant. ' +\n  'You have a photo of the plant and its last health diagnosis. ' +\n  'Answer questions about watering, light, soil, pests, and treatment. Be concise and practical.';\n\nconst system = [{ role: 'system', content: systemContent }];\n\nconst encoded = $('Encode image').first().json;\nconst imagePart = encoded && encoded.imageUrl\n  ? [{ type: 'image_url', image_url: { url: encoded.imageUrl } }]\n  : [];\n\nconst userMsg = {\n  role: 'user',\n  content: [...imagePart, { type: 'text', text: hook.message || '' }]\n};\n\nconst prior = history.map((m) => ({\n  role: m.role === 'assistant' ? 'assistant' : 'user',\n  content: String(m.content || '')\n}));\n\nreturn [{\n  json: {\n    messages: [...system, ...prior, userMsg]\n  }\n}];"
-      },
-      "id": "chat-build",
-      "name": "Build chat payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1040,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Title",
-              "value": "PhytoScan App"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}"
-      },
-      "id": "chat-openrouter",
-      "name": "OpenRouter (chat)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        640,
-        300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "",
-          "name": "OpenRouter API key"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const raw = $input.all()[0].json;\nconst msg = raw.choices?.[0]?.message ?? {};\nconst content = Array.isArray(msg.content)\n  ? msg.content.map((part) => part.text ?? part.content ?? '').join('')\n  : (msg.content || msg.reasoning || '');\n\nif (!String(content).trim()) {\n  throw new Error('No reply from model. Raw: ' + JSON.stringify(raw).slice(0, 400));\n}\nreturn [{ json: { reply: String(content) } }];"
-      },
-      "id": "chat-reply",
-      "name": "Extract reply",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        840,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ reply: $('Extract reply').first().json.reply }) }}"
-      },
-      "id": "chat-respond",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1040,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const hook = $('Webhook (chat)').first().json;\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\nreturn [{ json: { ...hook, url: dataUrl ? '' : raw, dataUrl } }];"
+        "jsCode": "const hook = $('Webhook (chat)').first().json;\n\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\n\nconst scanId = typeof hook.scanId === 'string' && hook.scanId.trim() !== '' ? hook.scanId : 'chat'; \nconst message = typeof hook.message === 'string' ? hook.message : '';\nconst history = Array.isArray(hook.history) ? hook.history : [];\n\nreturn [{ json: {\n  ...hook,\n  scanId,\n  message,\n  history,\n  url: dataUrl ? '' : raw,\n  dataUrl,\n  imageUrl: raw\n} }];"
       },
       "id": "chat-resolve",
       "name": "Resolve image",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        440,
-        120
-      ]
+      "position": [440, 120]
     },
     {
       "parameters": {
@@ -121,102 +43,136 @@
       "name": "Fetch image",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        640,
-        120
-      ]
+      "position": [640, 40]
     },
     {
       "parameters": {
-        "jsCode": "const resolved = $('Resolve image').first().json;\nif (resolved.dataUrl) return [{ json: { imageUrl: resolved.dataUrl } }];\n\nconst item = $input.all()[0];\nif (item && item.binary && item.binary.data) {\n  const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n  if (buffer && buffer.length > 0) {\n    const mime = item.binary.data.mimeType || 'image/jpeg';\n    return [{ json: { imageUrl: 'data:' + mime + ';base64,' + buffer.toString('base64') } }];\n  }\n}\n\nconst hook = $('Webhook (chat)').first().json;\nthrow new Error('No image received. Webhook keys: ' + Object.keys(hook).join(', '));"
+        "jsCode": "const resolved = $('Resolve image').first().json;\nconst prepared = $('Prepare agent input').first().json;\n\nconst input = $input.all()[0];\nconst hasBinary = !!(input && input.binary && Object.keys(input.binary).length > 0);\n\nif (hasBinary) {\n  return [{ json: prepared, binary: input.binary }];\n}\n\nif (resolved.dataUrl) {\n  const match = /^data:([^;]+);base64,(.+)$/.exec(resolved.dataUrl);\n  if (match) {\n    const mime = match[1] || 'image/jpeg';\n    const b64 = match[2];\n    return [{ json: prepared, binary: { data: {\n      data: b64,\n      mimeType: mime,\n      fileName: prepared.imageUrl.split('/').pop() || 'plant.jpg'\n    } } }];\n  }\n}\n\nthrow new Error('No image received. Webhook keys: ' + Object.keys($('Webhook (chat)').first().json).join(', '));"
       },
       "id": "chat-encode",
-      "name": "Encode image",
+      "name": "Prepare binary image",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        840,
-        120
-      ]
+      "position": [840, 120]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resolved = $('Resolve image').first().json;\nconst message = resolved.message;\nconst history = resolved.history || [];\n\n// Serialize any frontend-supplied history so long-lived context carries even if\n// the n8n memory node was cleared. The memory node (keyed by scanId) is the\n// primary conversation store; history here is a safety net of prior exchanges.\nconst historyText = history\n  .map((m) => (m.role === 'assistant' ? 'Assistant: ' : 'User: ') + String(m.content || ''))\n  .join('\\n');\n\nconst chatInput = historyText\n  ? 'Recent conversation:\\n' + historyText + '\\n\\nUser now asks: ' + message\n  : message;\n\nreturn [{ json: {\n  chatInput,\n  scanId: resolved.scanId,\n  imageUrl: resolved.imageUrl\n} }];"
+      },
+      "id": "chat-prepare",
+      "name": "Prepare agent input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You are the PhytoScan Plant Doctor, a helpful and precise botanist assistant. You have a photo of the plant and its last health diagnosis. Answer questions about watering, light, soil, pests, and treatment. Be concise and practical.",
+          "passthroughBinaryImages": true
+        }
+      },
+      "id": "chat-agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [1060, 300]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "options": {}
+      },
+      "id": "chat-nvidia-model",
+      "name": "NVIDIA Nemotron Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [1060, 520],
+      "credentials": {
+        "nvidiaApi": { "id": "", "name": "NVIDIA Nemotron" }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "options": {}
+      },
+      "id": "chat-openrouter-model",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [1260, 520],
+      "credentials": {
+        "openRouterApi": { "id": "", "name": "OpenRouter" }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.scanId }}",
+        "contextWindowLength": 20
+      },
+      "id": "chat-memory",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1060, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json;\nconst reply = typeof raw.output === 'string'\n  ? raw.output\n  : (typeof raw.reply === 'string' ? raw.reply\n  : (typeof raw.output === 'object' && raw.output && typeof raw.output.reply === 'string' ? raw.output.reply : ''));\n\nif (!String(reply).trim()) {\n  throw new Error('No reply from model. Raw: ' + JSON.stringify(raw).slice(0, 400));\n}\nreturn [{ json: { reply: String(reply) } }];"
+      },
+      "id": "chat-reply",
+      "name": "Extract reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1260, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ reply: $('Extract reply').first().json.reply }) }}"
+      },
+      "id": "chat-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1460, 300]
     }
   ],
   "connections": {
     "Webhook (chat)": {
-      "main": [
-        [
-          {
-            "node": "Resolve image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build chat payload": {
-      "main": [
-        [
-          {
-            "node": "OpenRouter (chat)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenRouter (chat)": {
-      "main": [
-        [
-          {
-            "node": "Extract reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract reply": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Resolve image", "type": "main", "index": 0 }]]
     },
     "Resolve image": {
-      "main": [
-        [
-          {
-            "node": "Fetch image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Prepare agent input", "type": "main", "index": 0 }]]
+    },
+    "Prepare agent input": {
+      "main": [[{ "node": "Fetch image", "type": "main", "index": 0 }]]
     },
     "Fetch image": {
-      "main": [
-        [
-          {
-            "node": "Encode image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Prepare binary image", "type": "main", "index": 0 }]]
     },
-    "Encode image": {
-      "main": [
-        [
-          {
-            "node": "Build chat payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Prepare binary image": {
+      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+    },
+    "AI Agent": {
+      "main": [[{ "node": "Extract reply", "type": "main", "index": 0 }]]
+    },
+    "Extract reply": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    },
+    "NVIDIA Nemotron Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 1 }]]
+    },
+    "Simple Memory": {
+      "ai_memory": [[{ "node": "AI Agent", "type": "ai_memory", "index": 0 }]]
     }
   },
   "settings": {
