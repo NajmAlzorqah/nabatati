@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, BookOpen, Moon, ScanLine, Sun } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -8,8 +9,6 @@ import { useTheme } from "@/components/theme-provider";
 import { CameraView } from "@/components/camera/CameraView";
 import { LightMeter } from "@/components/light/LightMeter";
 import { AnalysisResult } from "@/components/scan/AnalysisResult";
-import { PlantPassport } from "@/components/passport/PlantPassport";
-import { PlantDoctorChat } from "@/components/doctor/PlantDoctorChat";
 import { compressImage } from "@/lib/compress";
 import { luminanceFromDataUrl } from "@/lib/luminance";
 import { analyzePlant } from "@/lib/analysis";
@@ -17,6 +16,37 @@ import { saveScan } from "@/lib/db";
 import { randomId } from "@/lib/utils";
 import { getSupabase, uploadPlantImage } from "@/lib/supabase";
 import type { ScanResult } from "@/lib/types";
+
+// Lazy-loaded: the passport and doctor chat only render after a scan, never on
+// the camera-first first paint. Deferring them shrinks the initial bundle and
+// loads these chunks only when the user reaches them.
+const PlantPassport = dynamic(
+  () =>
+    import("@/components/passport/PlantPassport").then(
+      (mod) => mod.PlantPassport,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="aspect-[4/3] w-full animate-pulse rounded-2xl bg-muted"
+          />
+        ))}
+      </div>
+    ),
+  },
+);
+
+const PlantDoctorChat = dynamic(
+  () =>
+    import("@/components/doctor/PlantDoctorChat").then(
+      (mod) => mod.PlantDoctorChat,
+    ),
+  { ssr: false, loading: () => null },
+);
 
 type Screen =
   | { name: "camera" }
