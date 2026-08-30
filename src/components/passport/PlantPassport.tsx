@@ -65,13 +65,13 @@ export function PlantPassport({
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-[#15803d]" />
             <h2 className="font-heading text-[30px] leading-tight tracking-tight">
-              جواز سفر النبات
+              كتالوج النبات
             </h2>
           </div>
           <button
             onClick={() => load()}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            aria-label="تحديث جواز السفر"
+            aria-label="تحديث الكتالوج"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             تحديث
@@ -91,7 +91,7 @@ export function PlantPassport({
         <div className="rounded-2xl border border-dashed border-border bg-muted/40 px-6 py-10 text-center">
           <p className="font-medium">لا توجد فحوصات بعد</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            التقط صورة نبات أو ارفعها لبناء جواز سفرك.
+            التقط صورة نبات أو ارفعها لبناء كتالوجك.
           </p>
         </div>
       ) : variant === "grid" ? (

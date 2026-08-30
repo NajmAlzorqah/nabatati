@@ -236,7 +236,7 @@ export function App() {
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 font-medium">
                   <BookOpen className="h-5 w-5 text-[#15803d]" />
-                  <span className="text-[#15803d]">جواز السفر</span>
+                  <span className="text-[#15803d]">الكتالوج</span>
                 </span>
               </div>
               <button
@@ -253,7 +253,7 @@ export function App() {
             </div>
 
             <h1 className="font-heading text-[30px] leading-tight tracking-tight">
-              جواز سفر النبات
+              كتالوج النبات
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               كل نباتاتك المفحوصة في مكان واحد.
@@ -333,7 +333,7 @@ export function App() {
                     <button
                       onClick={() => window.history.back()}
                       className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-                      aria-label="العودة إلى جواز السفر"
+                      aria-label="العودة إلى الكتالوج"
                     >
                       <ArrowRight className="h-4 w-4" />
                       رجوع

@@ -85,7 +85,7 @@ export function CameraView({ onCapture, onOpenPassport, error }: CameraViewProps
               size="icon"
               className="pointer-events-auto h-14 w-14 rounded-full bg-white/10 text-white"
               onClick={onOpenPassport}
-              aria-label="عرض جواز سفر النبات"
+              aria-label="عرض كتالوج النبات"
             >
               <BookOpen className="h-6 w-6" />
             </Button>
