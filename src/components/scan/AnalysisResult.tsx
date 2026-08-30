@@ -16,10 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const statusStyles: Record<string, string> = {
-  Healthy: "bg-[#dcfce7] text-[#166534] dark:bg-[#15803d]/20 dark:text-[#86efac]",
-  Warning: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/20 dark:text-amber-300",
-  Critical:
-    "bg-[#fee2e2] text-[#991b1b] dark:bg-red-500/20 dark:text-red-300",
+  صحي: "bg-[#dcfce7] text-[#166534] dark:bg-[#15803d]/20 dark:text-[#86efac]",
+  إنذار: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/20 dark:text-amber-300",
+  حرج: "bg-[#fee2e2] text-[#991b1b] dark:bg-red-500/20 dark:text-red-300",
 };
 
 export function AnalysisResult({
@@ -45,20 +44,20 @@ export function AnalysisResult({
           <CardTitle className="font-heading text-[30px] leading-tight tracking-tight">
             {a.identification.name}
           </CardTitle>
-          <p className="font-medium italic text-muted-foreground">
+          <p className="font-medium text-muted-foreground">
             {a.identification.scientific_name}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div>
             <p className="mb-1 text-sm font-medium text-muted-foreground">
-              Confidence
+              دقة التحديد
             </p>
             <p className="text-base">{a.identification.confidence}</p>
           </div>
           <div>
             <p className="mb-1 text-sm font-medium text-muted-foreground">
-              Diagnosis
+              التشخيص
             </p>
             <p className="text-sm leading-relaxed">{a.health_assessment.diagnosis}</p>
           </div>
@@ -69,7 +68,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Droplets className="h-4 w-4 text-[#15803d]" /> Watering
+              <Droplets className="h-4 w-4 text-[#15803d]" /> الري
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -77,7 +76,7 @@ export function AnalysisResult({
               {a.care_instructions.watering_frequency}
             </p>
             <p className="mt-2 text-xs font-medium text-muted-foreground">
-              Needs water: {a.health_assessment.needs_water ? "Yes" : "No"}
+              يحتاج إلى الماء: {a.health_assessment.needs_water ? "نعم" : "لا"}
             </p>
           </CardContent>
         </Card>
@@ -85,7 +84,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sprout className="h-4 w-4 text-[#15803d]" /> Soil
+              <Sprout className="h-4 w-4 text-[#15803d]" /> التربة
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -96,7 +95,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-4 w-4 text-[#15803d]" /> Light
+              <Lightbulb className="h-4 w-4 text-[#15803d]" /> الضوء
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -110,7 +109,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <PawPrint className="h-4 w-4 text-[#15803d]" /> Toxicity
+              <PawPrint className="h-4 w-4 text-[#15803d]" /> السمّية
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -122,7 +121,7 @@ export function AnalysisResult({
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Leaf className="h-4 w-4 text-[#15803d]" /> Environmental impact
+            <Leaf className="h-4 w-4 text-[#15803d]" /> الأثر البيئي
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -133,7 +132,7 @@ export function AnalysisResult({
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Quote className="h-4 w-4 text-[#15803d]" /> Fun fact
+            <Quote className="h-4 w-4 text-[#15803d]" /> معلومة طريفة
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -145,7 +144,7 @@ export function AnalysisResult({
         <Card className="border-[#dc2626]/40">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base text-[#dc2626]">
-              <FlaskConical className="h-4 w-4" /> Needs treatment
+              <FlaskConical className="h-4 w-4" /> يحتاج إلى علاج
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -159,7 +158,7 @@ export function AnalysisResult({
         className="flex w-full items-center justify-center gap-2 rounded-full bg-[#15803d] px-5 py-3 font-medium text-white transition-transform active:scale-[0.98]"
       >
         <HeartPulse className="h-4 w-4" />
-        Ask the Plant Doctor
+        اسأل الطبيب النباتي
       </button>
     </motion.div>
   );

@@ -14,6 +14,7 @@ import { compressImage } from "@/lib/compress";
 import { luminanceFromDataUrl } from "@/lib/luminance";
 import { analyzePlant } from "@/lib/analysis";
 import { saveScan } from "@/lib/db";
+import { randomId } from "@/lib/utils";
 import { getSupabase, uploadPlantImage } from "@/lib/supabase";
 import type { ScanResult } from "@/lib/types";
 
@@ -43,7 +44,7 @@ export function App() {
         );
         setStep("analyzing");
 
-        const scanId = crypto.randomUUID();
+        const scanId = randomId();
 
         // Upload image to Supabase Storage when available; fall back to the
         // compressed data URL when Supabase is unconfigured.
@@ -76,7 +77,7 @@ export function App() {
         setResult(scan);
         setStep("result");
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Something went wrong";
+        const msg = e instanceof Error ? e.message : "حدث خطأ ما";
         setError(msg);
         setStep("camera");
       }
@@ -134,7 +135,7 @@ export function App() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={captured ?? ""}
-                alt="Captured plant"
+                alt="النبات الملتقط"
                 className="absolute inset-0 h-full w-full object-cover opacity-60"
               />
               <div className="absolute inset-0 flex items-center justify-center">
@@ -150,12 +151,14 @@ export function App() {
 
             <div className="w-full max-w-sm">
               <h1 className="font-heading text-[30px] leading-tight tracking-tight">
-                {step === "uploading" ? "Preparing photo…" : "Analyzing your plant…"}
+                {step === "uploading"
+                  ? "جارٍ تجهيز الصورة…"
+                  : "جارٍ تحليل نباتك…"}
               </h1>
               <p className="mt-1 text-sm text-white/70">
                 {step === "uploading"
-                  ? "Optimizing image for the scan."
-                  : "Checking health, species, and care needs."}
+                  ? "تحسين الصورة من أجل الفحص."
+                  : "فحص صحة النبات ونوعه واحتياجات العناية به."}
               </p>
             </div>
 
@@ -178,11 +181,11 @@ export function App() {
                 <div className="flex items-center gap-1.5 font-medium">
                   <span className="text-[#15803d]">PhytoScan</span>
                 </div>
-                <button
-                  onClick={toggle}
-                  className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-                  aria-label="Toggle theme"
-                >
+<button
+          onClick={toggle}
+          className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
+          aria-label="تبديل المظهر"
+        >
                   {theme === "dark" ? (
                     <Sun className="h-4 w-4" />
                   ) : (
@@ -201,7 +204,7 @@ export function App() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={captured ?? ""}
-                  alt="Scanned plant"
+                  alt="النبات المفحوص"
                   className="aspect-[4/3] w-full object-cover"
                 />
               </div>
@@ -215,7 +218,7 @@ export function App() {
                 onClick={retake}
                 className="w-full rounded-full border border-border px-5 py-3 font-medium transition-transform hover:bg-muted active:scale-[0.98]"
               >
-                Scan another plant
+                امسح نباتًا آخر
               </button>
 
               <PlantPassport latestId={result.id} onSelect={selectScan} />

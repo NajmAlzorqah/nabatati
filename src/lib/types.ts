@@ -7,7 +7,7 @@ export const PlantAnalysisSchema = z.object({
     confidence: z.string(),
   }),
   health_assessment: z.object({
-    status: z.enum(["Healthy", "Warning", "Critical"]),
+    status: z.enum(["صحي", "إنذار", "حرج"]),
     diagnosis: z.string(),
     needs_water: z.boolean(),
     needs_medicine: z.boolean(),
@@ -19,7 +19,7 @@ export const PlantAnalysisSchema = z.object({
   care_instructions: z.object({
     watering_frequency: z.string(),
     soil_type: z.string(),
-    toxicity: z.enum(["Safe", "Toxic for pets"]),
+    toxicity: z.enum(["آمن للحيوانات الأليفة", "سام للحيوانات الأليفة"]),
   }),
   environmental_impact: z.string(),
   fun_fact: z.string(),

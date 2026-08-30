@@ -8,10 +8,10 @@ type LightMeterProps = {
 };
 
 function luminanceLabel(v: number): string {
-  if (v >= 0.7) return "Bright";
-  if (v >= 0.45) return "Moderate";
-  if (v >= 0.2) return "Dim";
-  return "Very Low";
+  if (v >= 0.7) return "ساطع";
+  if (v >= 0.45) return "معتدل";
+  if (v >= 0.2) return "خافت";
+  return "منخفض جدًا";
 }
 
 export function LightMeter({ luminance }: LightMeterProps) {
@@ -25,7 +25,7 @@ export function LightMeter({ luminance }: LightMeterProps) {
         <div className="flex items-center gap-2">
           <Sun className="h-4 w-4 text-[#86efac]" />
           <span className="text-sm font-medium text-white/90">
-            Light meter · {label}
+            قياس الضوء · {label}
           </span>
         </div>
         <span className="font-mono text-sm text-white/70">{pct}%</span>

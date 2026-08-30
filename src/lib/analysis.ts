@@ -32,7 +32,7 @@ function asBoolean(v: unknown): boolean {
 
 function confidenceString(v: unknown): string {
   const s = asString(v);
-  if (s === "") return "Unknown";
+  if (s === "") return "غير معروف";
   if (s.includes("%")) return s.endsWith("%") ? s : `${s}%`;
   const n = Number(s);
   if (Number.isFinite(n)) {
@@ -41,27 +41,53 @@ function confidenceString(v: unknown): string {
   return s;
 }
 
-function enumMatch(v: unknown, allowed: [string, string, string]): string {
+const STATUS_ALIASES: Record<string, string> = {
+  healthy: "صحي",
+  "صحي": "صحي",
+  سليم: "صحي",
+  جيدة: "صحي",
+  warning: "إنذار",
+  إنذار: "إنذار",
+  تحذير: "إنذار",
+  متوسط: "إنذار",
+  critical: "حرج",
+  حرج: "حرج",
+  حرجة: "حرج",
+  خطير: "حرج",
+};
+
+const SAFE_TOXICITY_TOKENS = [
+  "safe",
+  "friendly",
+  "non-toxic",
+  "nontoxic",
+  "غير سام",
+  "آمن",
+  "لطيف",
+];
+
+export function statusString(
+  v: unknown,
+): PlantAnalysis["health_assessment"]["status"] {
   const s = asString(v).toLowerCase();
-  if (s === "") return allowed[0];
-  const exact = allowed.find((a) => a.toLowerCase() === s);
-  if (exact) return exact;
-  const partial = allowed.find((a) => s.includes(a.toLowerCase()));
-  return partial ?? allowed[0];
+  if (s === "") return "صحي";
+  const exact = STATUS_ALIASES[s];
+  if (exact) return exact as PlantAnalysis["health_assessment"]["status"];
+  for (const [key, value] of Object.entries(STATUS_ALIASES)) {
+    if (s.includes(key)) return value as PlantAnalysis["health_assessment"]["status"];
+  }
+  return "صحي";
 }
 
-function statusString(v: unknown): "Healthy" | "Warning" | "Critical" {
-  return enumMatch(v, ["Healthy", "Warning", "Critical"]) as
-    | "Healthy"
-    | "Warning"
-    | "Critical";
-}
-
-function toxicityString(v: unknown): "Safe" | "Toxic for pets" {
+export function toxicityString(
+  v: unknown,
+): PlantAnalysis["care_instructions"]["toxicity"] {
   const s = asString(v).toLowerCase();
-  if (s === "") return "Safe";
-  if (s.includes("friendly") || s.includes("non-toxic") || s.includes("safe")) return "Safe";
-  return "Toxic for pets";
+  if (s === "") return "آمن للحيوانات الأليفة";
+  if (SAFE_TOXICITY_TOKENS.some((t) => s.includes(t))) {
+    return "آمن للحيوانات الأليفة";
+  }
+  return "سام للحيوانات الأليفة";
 }
 
 function coerceAnalysis(input: unknown): PlantAnalysis {
@@ -71,7 +97,7 @@ function coerceAnalysis(input: unknown): PlantAnalysis {
   const la = isRecord(o.light_analysis) ? o.light_analysis : {};
   const ci = isRecord(o.care_instructions) ? o.care_instructions : {};
 
-  const name = asString(id.name) || "Unknown";
+  const name = asString(id.name) || "غير معروف";
   const scientificName = asString(id.scientific_name) || name;
 
   return {
@@ -82,21 +108,21 @@ function coerceAnalysis(input: unknown): PlantAnalysis {
     },
     health_assessment: {
       status: statusString(ha.status),
-      diagnosis: asString(ha.diagnosis) || "No specific issue reported.",
+      diagnosis: asString(ha.diagnosis) || "لا توجد مشكلة محدّدة.",
       needs_water: asBoolean(ha.needs_water),
       needs_medicine: asBoolean(ha.needs_medicine),
     },
     light_analysis: {
-      current_light: asString(la.current_light) || "No data",
-      recommendation: asString(la.recommendation) || "No data",
+      current_light: asString(la.current_light) || "لا توجد بيانات",
+      recommendation: asString(la.recommendation) || "لا توجد بيانات",
     },
     care_instructions: {
-      watering_frequency: asString(ci.watering_frequency) || "Not specified",
-      soil_type: asString(ci.soil_type) || "Not specified",
+      watering_frequency: asString(ci.watering_frequency) || "غير محدّد",
+      soil_type: asString(ci.soil_type) || "غير محدّد",
       toxicity: toxicityString(ci.toxicity),
     },
-    environmental_impact: asString(o.environmental_impact) || "Not specified",
-    fun_fact: asString(o.fun_fact) || "No fun fact available.",
+    environmental_impact: asString(o.environmental_impact) || "غير محدّد",
+    fun_fact: asString(o.fun_fact) || "لا توجد معلومة طريفة حاليًا.",
   };
 }
 
@@ -105,7 +131,7 @@ export async function analyzePlant(
 ): Promise<AnalyzeResponse> {
   if (config.n8nWebhookUrl.trim() === "") {
     throw new Error(
-      "Plant analysis is not configured. Set NEXT_PUBLIC_N8N_WEBHOOK_URL to enable scans.",
+      "تحليل النبات غير مُهيّأ. عيّن NEXT_PUBLIC_N8N_WEBHOOK_URL لتفعيل الفحص.",
     );
   }
 
@@ -116,7 +142,7 @@ export async function analyzePlant(
   });
 
   if (!res.ok) {
-    throw new Error(`Analysis failed (${res.status})`);
+    throw new Error(`تعذّر التحليل (${res.status})`);
   }
 
   let json: unknown;
@@ -126,12 +152,12 @@ export async function analyzePlant(
     const text = await res.text().catch(() => "");
     throw new Error(
       text.trim()
-        ? `Analysis service returned a non-JSON response: ${text.slice(0, 200)}`
-        : "Analysis service returned an empty response. Check that the n8n workflow is active and returns the analysis JSON.",
+        ? `أعادت خدمة التحليل استجابة غير JSON: ${text.slice(0, 200)}`
+        : "أعادت خدمة التحليل استجابة فارغة. تأكّد من أن سير عمل n8n مفعّل ويعيد JSON التحليل.",
     );
   }
   if (!isRecord(json)) {
-    throw new Error("Unexpected response from analysis service");
+    throw new Error("استجابة غير متوقّعة من خدمة التحليل");
   }
 
   const rawAnalysis: unknown = json.analysis ?? json;
@@ -141,7 +167,7 @@ export async function analyzePlant(
       .map((i) => `${i.path.join(".")}: ${i.message}`)
       .join("; ");
     throw new Error(
-      `Analysis response did not match the expected schema (${issues})`,
+      `استجابة التحليل لا تطابق البنية المتوقّعة (${issues})`,
     );
   }
 
@@ -160,7 +186,7 @@ export async function sendPlantDoctorMessage(
 ): Promise<string> {
   if (config.n8nChatWebhookUrl.trim() === "") {
     throw new Error(
-      "Plant Doctor chat is not configured. Set NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL to enable chat.",
+      "محادثة الطبيب النباتي غير مُهيّأة. عيّن NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL لتفعيل المحادثة.",
     );
   }
 
@@ -175,7 +201,7 @@ export async function sendPlantDoctorMessage(
     }),
   });
 
-  if (!res.ok) throw new Error(`Chat failed (${res.status})`);
+  if (!res.ok) throw new Error(`تعذّرت المحادثة (${res.status})`);
 
   let json: unknown;
   try {
@@ -184,8 +210,8 @@ export async function sendPlantDoctorMessage(
     const text = await res.text().catch(() => "");
     throw new Error(
       text.trim()
-        ? `Chat service returned a non-JSON response: ${text.slice(0, 200)}`
-        : "Chat service returned an empty response. Check that the n8n chat workflow is active and returns text.",
+        ? `أعادت خدمة المحادثة استجابة غير JSON: ${text.slice(0, 200)}`
+        : "أعادت خدمة المحادثة استجابة فارغة. تأكّد من أن سير عمل المحادثة مفعّل ويعيد نصًا.",
     );
   }
   const record = (typeof json === "object" && json !== null ? json : {}) as Record<
@@ -201,7 +227,7 @@ export async function sendPlantDoctorMessage(
           ? record.content
           : "";
   if (typeof reply !== "string" || reply.trim() === "") {
-    throw new Error("Empty chat response");
+    throw new Error("استجابة المحادثة فارغة");
   }
   return reply;
 }

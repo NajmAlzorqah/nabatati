@@ -1,4 +1,6 @@
 import { getSupabase } from "./supabase";
+import { statusString, toxicityString } from "./analysis";
+import { randomId } from "./utils";
 import type { ChatMessage, PlantAnalysis, ScanResult } from "./types";
 
 const LS_SCANS_KEY = "phytoscan-scans";
@@ -77,7 +79,7 @@ export async function saveChatMessage(
   const key = LS_CHAT_PREFIX + scanId;
   const msgs: ChatMessage[] = JSON.parse(localStorage.getItem(key) ?? "[]");
   msgs.push({
-    id: crypto.randomUUID(),
+    id: randomId(),
     scanId,
     role,
     content,
@@ -147,14 +149,14 @@ function toScanResult(row: PlantRow): ScanResult {
     imageUrl: row.image_url ?? "",
     analysis: {
       identification: {
-        name: row.name ?? a.identification?.name ?? "Plant",
+        name: row.name ?? a.identification?.name ?? "نبات",
         scientific_name: row.scientific_name ?? a.identification?.scientific_name ?? "",
         confidence: row.confidence ?? a.identification?.confidence ?? "",
       },
       health_assessment: {
-        status: (row.health_status ??
-          a.health_assessment?.status ??
-          "Healthy") as PlantAnalysis["health_assessment"]["status"],
+        status: statusString(
+          row.health_status ?? a.health_assessment?.status ?? "صحي",
+        ),
         diagnosis: row.diagnosis ?? a.health_assessment?.diagnosis ?? "",
         needs_water: row.needs_water ?? a.health_assessment?.needs_water ?? false,
         needs_medicine:
@@ -168,9 +170,9 @@ function toScanResult(row: PlantRow): ScanResult {
       care_instructions: {
         watering_frequency: row.care_watering ?? a.care_instructions?.watering_frequency ?? "",
         soil_type: row.care_soil ?? a.care_instructions?.soil_type ?? "",
-        toxicity: (row.toxicity ??
-          a.care_instructions?.toxicity ??
-          "Safe") as PlantAnalysis["care_instructions"]["toxicity"],
+        toxicity: toxicityString(
+          row.toxicity ?? a.care_instructions?.toxicity ?? "آمن للحيوانات الأليفة",
+        ),
       },
       environmental_impact:
         row.environmental_impact ?? a.environmental_impact ?? "",

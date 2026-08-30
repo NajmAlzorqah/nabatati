@@ -18,6 +18,8 @@ There are two workflows (both live in `docs/n8n/`):
 >
 > The `*workflow.json` files are **manual hand-authored imports**. If an import is rejected, re-create the workflow in the editor and adjust `typeVersion` / node types to match your installed version — the node wiring is documented below.
 
+> **Arabic-first (VitaVege):** both workflows are fully Arabic. The system messages instruct the agent to answer in Modern Standard Arabic, the `Prepare agent input` code builds the prompt in Arabic, and the **enum values are the Arabic strings** used by the app's zod schema: `status` is one of `صحي / إنذار / حرج`, `toxicity` is one of `آمن للحيوانات الأليفة / سام للحيوانات الأليفة`, and `confidence` is a string ending in `%`. Responses are pure JSON inside a single `output` key — this is what the frontend parses and stores. If you edit the workflows locally, re-import the updated JSON and re-attach the credentials (step 4).
+
 ---
 
 ## 1. Prerequisites
@@ -125,9 +127,9 @@ Webhook (POST, path=phytoscan-analyze)
 {
   "analysis": {
     "identification": { "name": "...", "scientific_name": "...", "confidence": "..." },
-    "health_assessment": { "status": "Healthy|Warning|Critical", "diagnosis": "...", "needs_water": true, "needs_medicine": false },
+    "health_assessment": { "status": "صحي|إنذار|حرج", "diagnosis": "...", "needs_water": true, "needs_medicine": false },
     "light_analysis": { "current_light": "...", "recommendation": "..." },
-    "care_instructions": { "watering_frequency": "...", "soil_type": "...", "toxicity": "..." },
+    "care_instructions": { "watering_frequency": "...", "soil_type": "...", "toxicity": "آمن للحيوانات الأليفة|سام للحيوانات الأليفة" },
     "environmental_impact": "...",
     "fun_fact": "..."
   },

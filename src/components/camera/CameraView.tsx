@@ -22,7 +22,7 @@ export function CameraView({ onCapture, error }: CameraViewProps) {
   const capture = useCallback(() => {
     const shot = webcamRef.current?.capture?.();
     if (shot) onCapture(shot);
-    else setErr("Could not capture from the camera. Try uploading a photo instead.");
+    else setErr("تعذّر التقاط صورة من الكاميرا. جرّب رفع صورة بدلًا من ذلك.");
   }, [onCapture]);
 
   const handleFile = useCallback(
@@ -31,7 +31,7 @@ export function CameraView({ onCapture, error }: CameraViewProps) {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => onCapture(reader.result as string);
-      reader.onerror = () => setErr("Could not read the selected image.");
+      reader.onerror = () => setErr("تعذّرت قراءة الصورة المحدّدة.");
       reader.readAsDataURL(file);
       e.target.value = "";
     },
@@ -49,7 +49,7 @@ export function CameraView({ onCapture, error }: CameraViewProps) {
         <WebcamWrapper
           ref={webcamRef}
           onError={() =>
-            setErr("Camera unavailable - check permissions or upload a photo.")
+            setErr("الكاميرا غير متاحة — تحقّق من الأذونات أو ارفع صورة.")
           }
         />
       </motion.div>
@@ -65,14 +65,14 @@ export function CameraView({ onCapture, error }: CameraViewProps) {
             size="icon"
             className="pointer-events-auto h-14 w-14 rounded-full bg-white/10 text-white"
             onClick={() => fileRef.current?.click()}
-            aria-label="Upload a plant photo"
+            aria-label="رفع صورة نبات"
           >
             <ImagePlus className="h-6 w-6" />
           </Button>
           <motion.button
             whileTap={{ scale: 0.92 }}
             onClick={capture}
-            aria-label="Take photo"
+            aria-label="التقاط صورة"
             className="pointer-events-auto rounded-full border-4 border-white bg-white/20 p-1"
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#15803d]">

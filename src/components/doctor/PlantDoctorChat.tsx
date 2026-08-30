@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { HeartPulse, Send } from "lucide-react";
 import { sendPlantDoctorMessage } from "@/lib/analysis";
+import { randomId } from "@/lib/utils";
 import { getChatMessages, saveChatMessage } from "@/lib/db";
 import type { ChatMessage, ScanResult } from "@/lib/types";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,7 +55,7 @@ export function PlantDoctorChat({
     setSending(true);
     setSendError(null);
     const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: randomId(),
       scanId: scan.id,
       role: "user",
       content: text,
@@ -73,7 +74,7 @@ export function PlantDoctorChat({
         text,
       );
       const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: randomId(),
         scanId: scan.id,
         role: "assistant",
         content: reply,
@@ -97,7 +98,7 @@ export function PlantDoctorChat({
         <SheetHeader className="border-b border-border">
           <div className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-[#15803d]" />
-            <SheetTitle>Plant Doctor</SheetTitle>
+            <SheetTitle>الطبيب النباتي</SheetTitle>
           </div>
           <p className="text-xs text-muted-foreground">
             {scan.analysis.identification.name} · {scan.analysis.identification.scientific_name}
@@ -108,16 +109,16 @@ export function PlantDoctorChat({
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="self-start max-w-[80%] rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
+            className="self-start max-w-[80%] rounded-2xl rounded-br-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
           >
-            Hi, I&apos;m your Plant Doctor. Ask me anything about{" "}
-            {scan.analysis.identification.name} - watering, light, pests, or how to
-            treat the issues in this scan.
+            مرحبًا! أنا طبيبك النباتي. اسألني أي شيء عن{" "}
+            {scan.analysis.identification.name} — الري، الضوء، الآفات، أو كيفية
+            معالجة المشاكل المكتشفة في هذا الفحص.
           </motion.div>
 
           {loadError && (
             <div className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Could not load chat history: {loadError}
+              تعذّر تحميل سجل المحادثة: {loadError}
             </div>
           )}
 
@@ -126,8 +127,8 @@ export function PlantDoctorChat({
               key={m.id}
               className={
                 m.role === "user"
-                  ? "self-end max-w-[80%] rounded-2xl rounded-br-sm bg-[#15803d] px-4 py-2.5 text-sm leading-relaxed text-white"
-                  : "self-start max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
+                  ? "self-end max-w-[80%] rounded-2xl rounded-bl-sm bg-[#15803d] px-4 py-2.5 text-sm leading-relaxed text-white"
+                  : "self-start max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
               }
             >
               {m.content}
@@ -135,7 +136,7 @@ export function PlantDoctorChat({
           ))}
           {sendError && (
             <div className="self-start max-w-[80%] rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Could not send your message: {sendError}. Please try again.
+              تعذّر إرسال رسالتك: {sendError}. حاول مرة أخرى.
             </div>
           )}
           <div ref={endRef} />
@@ -152,7 +153,7 @@ export function PlantDoctorChat({
                   send();
                 }
               }}
-              placeholder="Ask the Plant Doctor…"
+              placeholder="اسأل الطبيب النباتي…"
               className="max-h-32 min-h-11 flex-1 resize-none"
               rows={1}
             />
@@ -161,9 +162,9 @@ export function PlantDoctorChat({
               disabled={sending || !input.trim()}
               size="icon"
               className="h-11 w-11 shrink-0 rounded-full"
-              aria-label="Send message"
+              aria-label="إرسال رسالة"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 -scale-x-100" />
             </Button>
           </div>
         </div>
