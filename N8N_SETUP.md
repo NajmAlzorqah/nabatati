@@ -16,7 +16,7 @@ There are two workflows (both live in `docs/n8n/`):
 ## 1. Prerequisites
 
 - An **N8N** instance (self-hosted Docker or n8n.cloud) reachable from your app's browser environment (must be HTTPS if the app is served over HTTPS).
-- An **OpenRouter** account + API key (free models: `google/gemma-4-31b-it:free`).
+- An **OpenRouter** account + API key (free vision models: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, `google/gemma-4-31b-it:free`, `minimax/minimax-m3:free`).
 - Optional — an **OpenWeatherMap** API key (free tier) to enrich scans with local weather when the user grants location.
 - A **Supabase** project (Postgres + Storage) for the Plant Passport + chat history. See `docs/supabase/schema.sql`.
 
@@ -36,29 +36,28 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_SUPABASE_BUCKET=plant-photos
 
-# Model overrides (fall back to google/gemma-4-31b-it:free if unset)
-OPENROUTER_MODEL=google/gemma-4-31b-it:free
-OPENROUTER_MODEL_CHAT=google/gemma-4-31b-it:free
+# Informational only — the model is hardcoded in the n8n OpenRouter node
+# (see "Credentials" section). The frontend never reads these.
+OPENROUTER_MODEL=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+OPENROUTER_MODEL_CHAT=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 ```
 
 > **Unconfigured webhooks:** if `NEXT_PUBLIC_N8N_WEBHOOK_URL` is left blank, scans raise a clear "not configured" error and return to the camera screen. Likewise, blank `NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL` makes Plant Doctor chat show an error instead of replying. There is no mock/demo data fallback — real errors and states are surfaced.
 
 ---
 
-## 3. N8N environment credentials
+## 3. Credentials (instead of environment variables)
 
-Set these as N8N **environment variables** (in `docker-compose` / `.env` of the n8n container, or n8n instance settings). The workflows read them via `$env.*`:
+> **n8n cloud blocks `$env`.** n8n 2.x defaults `N8N_BLOCK_ENV_ACCESS_IN_NODE=true`, and on n8n **cloud** you cannot change it (the error literally says to ask the administrator). So the workflows never use `$env` — secrets live in **n8n credentials**, and non-secret values (model IDs) are hardcoded in the nodes.
 
-```bash
-OPENROUTER_API_KEY=sk-or-...     # OpenRouter API key
-OPENROUTER_MODEL=google/gemma-4-31b-it:free     # analyze model
-OPENROUTER_MODEL_CHAT=google/gemma-4-31b-it:free # chat model
-OPENWEATHERMAP_API_KEY=          # optional; only needed for the weather branch
-```
+Create these credentials (n8n dashboard → **Credentials → Add**):
 
-The workflows reference `$env.OPENROUTER_API_KEY`, `$env.OPENROUTER_MODEL`, `$env.OPENROUTER_MODEL_CHAT`, `$env.OPENWEATHERMAP_API_KEY`. Ensure those exact environment variable names exist in n8n.
+| Credential type | Name | Purpose | Fields |
+|---|---|---|---|
+| **Query Auth** | `OpenWeatherMap API key` (optional) | Weather node appid | Name: `appid`, Value: your OpenWeather key |
+| **Header Auth** | `OpenRouter API key` | OpenRouter auth | Name: `Authorization`, Value: `Bearer sk-or-...` |
 
-> **Simpler alternative:** instead of env vars, open the **OpenRouter** HTTP Request node and Date/Model values and paste your key / model directly, then delete the `={{ ... }}` expression. Do whichever is easier in your n8n.
+Header Auth adds an `Authorization` header automatically; the `X-Title`/`PhytoScan App` header is already baked into the node. The model is `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (vision-capable) hardcoded in the OpenRouter body — change it there if you want a different model.
 
 ---
 
@@ -66,7 +65,7 @@ The workflows reference `$env.OPENROUTER_API_KEY`, `$env.OPENROUTER_MODEL`, `$en
 
 1. n8n dashboard → **Workflows** → **⋮ menu** → **Import from File**.
 2. Import `docs/n8n/phytoscan-analyze.workflow.json` and `docs/n8n/phytoscan-chat.workflow.json`.
-3. Open each workflow, fix the **OpenRouter** HTTP Request node's URL/auth, and set an OpenWeather key if you want the weather branch.
+3. Open each workflow and attach the credentials: on the **OpenRouter** nodes select the `OpenRouter API key` (Header Auth) credential; on the **Weather** node select the `OpenWeatherMap API key` (Query Auth) credential. Credentials are referenced by name/id on `httpHeaderAuth` / `httpQueryAuth` in the imported JSON — re-select them if n8n flags them as missing.
 4. Click **Active** toggle to turn it on, or **Execute Workflow** to test. The production webhook URL is `…/webhook/phytoscan-analyze` (or `…/webhook-test/…` while testing — use the `webhook-test` path in the app only for dev).
 
 ---
@@ -78,23 +77,28 @@ Node chain:
 ```
 Webhook (POST, path=phytoscan-analyze)
   │
+  ├─ Resolve image (Code: normalizes payload → `url` (https) or `dataUrl` (base64 `data:` URI);
+  │      accepts `imageUrl` or legacy `base64Image`; passes lat/lng through)
   ├─ Has location? (If: lat & lng not empty)
-  │     ├─ true  → Weather (OpenWeather GET, lat/lon/appid) → Merge (input 0)
+  │     ├─ Weather (OpenWeather GET, lat/lon + Query Auth appid)  → Merge (input 0)
   │     └─ false → Merge (input 1)
   │
   ├─ Merge (append: weather first, webhook fallback)
-  ├─ Build context (Code: base64Image, imageUrl, temp, humidity, lat, lng)
-  ├─ OpenRouter (POST /api/v1/chat/completions, image as data URL base64)
+  ├─ Fetch image (HTTP Request → File: downloads the image URL in n8n, no provider URL-fetching; never fails the run)
+  ├─ Encode image (Code: resolves the binary buffer via `this.helpers.getBinaryDataBuffer()` — required because n8n cloud stores binary as `filesystem-v2` references, not inline base64 — then emits a `data:` URI; or passes a `dataUrl` through)
+  ├─ Build context (Code: builds `messages[]` embedding the image as a data URI, plus env data — no env-var access here)
+  ├─ OpenRouter (POST /api/v1/chat/completions, Header Auth credential, body = `={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}`)
   ├─ Clean result (Code: strip fence, JSON.parse → { analysis, temp, humidity, … })
   └─ Respond to Webhook ({ analysis, temp, humidity })
 ```
 
-**Webhook payload (from the app):**
+> **No `$env` anywhere — by design.** n8n 2.x's Code-node task runner blocks `process` (`process is not defined`), and n8n cloud blocks `$env` in expressions (`access to env vars denied`, `N8N_BLOCK_ENV_ACCESS_IN_NODE`). Secrets go in n8n credentials (Header Auth / Query Auth); the `messages[]` array is built in the Code node and interpolated into the OpenRouter body via `$json.messages`. The Plant Doctor chat workflow follows the same pattern.
+
+**Webhook payload (from the app):** The image travels as a **URL only** — a public Supabase Storage URL, or the base64 `data:` URL when Supabase is unconfigured.
 
 ```json
 {
-  "base64Image": "data:image/jpeg;base64,....",
-  "imageUrl": "https://.../public-image-or-empty",
+  "imageUrl": "https://.../public-image",
   "lat": 12.34,
   "lng": 56.78
 }
@@ -127,9 +131,12 @@ Node chain:
 
 ```
 Webhook (POST, path=phytoscan-chat)
-  → Build chat payload (Code: OpenRouter messages from message + history + imageUrl)
+  → Resolve image (Code: normalize `imageUrl`/`base64Image` → `url` or `dataUrl`)
+  → Fetch image (HTTP Request → File, never fails the run)
+  → Encode image (Code: `getBinaryDataBuffer()` → `data:` URI, or `dataUrl` passthrough)
+  → Build chat payload (Code: OpenRouter messages from message + history + image)
   → OpenRouter (POST /api/v1/chat/completions)
-  → Extract reply (Code: choices[0].message.content)
+  → Extract reply (Code: choices[0].message.content / reasoning)
   → Respond to Webhook ({ reply })
 ```
 

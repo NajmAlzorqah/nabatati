@@ -12,17 +12,23 @@
       "name": "Webhook (chat)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const hook = $('Webhook (chat)').first().json;\n\nconst history = Array.isArray(hook.history) ? hook.history : [];\nconst systemContent =\n  'You are the PhytoScan Plant Doctor, a helpful and precise botanist assistant. ' +\n  'You have a photo of the plant and its last health diagnosis. ' +\n  'Answer questions about watering, light, soil, pests, and treatment. Be concise and practical.';\n\nconst system = [{ role: 'system', content: systemContent }];\n\nconst imagePart = hook.imageUrl\n  ? [{ type: 'image_url', image_url: { url: hook.imageUrl } }]\n  : [];\n\nconst userMsg = {\n  role: 'user',\n  content: [...imagePart, { type: 'text', text: hook.message || '' }]\n};\n\nconst prior = history.map((m) => ({\n  role: m.role === 'assistant' ? 'assistant' : 'user',\n  content: String(m.content || '')\n}));\n\nreturn [{\n  json: {\n    model: process.env.OPENROUTER_MODEL_CHAT || 'google/gemma-4-31b-it:free',\n    messages: [...system, ...prior, userMsg]\n  }\n}];"
+        "jsCode": "const hook = $('Webhook (chat)').first().json;\n\nconst history = Array.isArray(hook.history) ? hook.history : [];\nconst systemContent =\n  'You are the PhytoScan Plant Doctor, a helpful and precise botanist assistant. ' +\n  'You have a photo of the plant and its last health diagnosis. ' +\n  'Answer questions about watering, light, soil, pests, and treatment. Be concise and practical.';\n\nconst system = [{ role: 'system', content: systemContent }];\n\nconst encoded = $('Encode image').first().json;\nconst imagePart = encoded && encoded.imageUrl\n  ? [{ type: 'image_url', image_url: { url: encoded.imageUrl } }]\n  : [];\n\nconst userMsg = {\n  role: 'user',\n  content: [...imagePart, { type: 'text', text: hook.message || '' }]\n};\n\nconst prior = history.map((m) => ({\n  role: m.role === 'assistant' ? 'assistant' : 'user',\n  content: String(m.content || '')\n}));\n\nreturn [{\n  json: {\n    messages: [...system, ...prior, userMsg]\n  }\n}];"
       },
       "id": "chat-build",
       "name": "Build chat payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        1040,
+        300
+      ]
     },
     {
       "parameters": {
@@ -32,10 +38,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer ={{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
               "name": "X-Title",
               "value": "PhytoScan App"
             }
@@ -43,23 +45,35 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $json.model, messages: $json.messages }) }}"
+        "jsonBody": "={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}"
       },
       "id": "chat-openrouter",
       "name": "OpenRouter (chat)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "OpenRouter API key"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.all()[0].json;\nconst reply = raw.choices && raw.choices[0] && raw.choices[0].message && raw.choices[0].message.content;\nif (!reply) throw new Error('No reply from model');\nreturn [{ json: { reply: String(reply) } }];"
+        "jsCode": "const raw = $input.all()[0].json;\nconst msg = raw.choices?.[0]?.message ?? {};\nconst content = Array.isArray(msg.content)\n  ? msg.content.map((part) => part.text ?? part.content ?? '').join('')\n  : (msg.content || msg.reasoning || '');\n\nif (!String(content).trim()) {\n  throw new Error('No reply from model. Raw: ' + JSON.stringify(raw).slice(0, 400));\n}\nreturn [{ json: { reply: String(content) } }];"
       },
       "id": "chat-reply",
       "name": "Extract reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [840, 300]
+      "position": [
+        840,
+        300
+      ]
     },
     {
       "parameters": {
@@ -70,7 +84,60 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1040, 300]
+      "position": [
+        1040,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const hook = $('Webhook (chat)').first().json;\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\nreturn [{ json: { ...hook, url: dataUrl ? '' : raw, dataUrl } }];"
+      },
+      "id": "chat-resolve",
+      "name": "Resolve image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Resolve image').first().json.url }}",
+        "sendBody": false,
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "chat-fetch",
+      "name": "Fetch image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resolved = $('Resolve image').first().json;\nif (resolved.dataUrl) return [{ json: { imageUrl: resolved.dataUrl } }];\n\nconst item = $input.all()[0];\nif (item && item.binary && item.binary.data) {\n  const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n  if (buffer && buffer.length > 0) {\n    const mime = item.binary.data.mimeType || 'image/jpeg';\n    return [{ json: { imageUrl: 'data:' + mime + ';base64,' + buffer.toString('base64') } }];\n  }\n}\n\nconst hook = $('Webhook (chat)').first().json;\nthrow new Error('No image received. Webhook keys: ' + Object.keys(hook).join(', '));"
+      },
+      "id": "chat-encode",
+      "name": "Encode image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        120
+      ]
     }
   ],
   "connections": {
@@ -78,7 +145,7 @@
       "main": [
         [
           {
-            "node": "Build chat payload",
+            "node": "Resolve image",
             "type": "main",
             "index": 0
           }
@@ -112,6 +179,39 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve image": {
+      "main": [
+        [
+          {
+            "node": "Fetch image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch image": {
+      "main": [
+        [
+          {
+            "node": "Encode image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encode image": {
+      "main": [
+        [
+          {
+            "node": "Build chat payload",
             "type": "main",
             "index": 0
           }

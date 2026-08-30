@@ -46,18 +46,18 @@ export function App() {
         const scanId = crypto.randomUUID();
 
         // Upload image to Supabase Storage when available; fall back to the
-        // inline data URL for the passport when Supabase is unconfigured.
+        // compressed data URL when Supabase is unconfigured.
         let imageUrl = "";
         if (getSupabase()) {
           imageUrl = await uploadPlantImage(compressed.base64, scanId);
         } else {
-          imageUrl = dataUrl;
+          imageUrl = compressed.base64;
         }
 
-        // Webhook payload: send a small JPEG + optional location + imageUrl.
+        // Webhook payload: the image travels as a URL only (public Supabase
+        // URL, or the compressed data URL when Supabase is unconfigured).
         const analysis = await analyzePlant({
-          base64Image: compressed.base64,
-          imageUrl: imageUrl || undefined,
+          imageUrl,
           lat: coords?.lat ?? null,
           lng: coords?.lng ?? null,
         });

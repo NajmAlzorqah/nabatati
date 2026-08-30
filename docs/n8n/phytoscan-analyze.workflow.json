@@ -12,7 +12,10 @@
       "name": "Webhook (analyze)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 300]
+      "position": [
+        220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +45,10 @@
       "name": "Has location?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,10 +66,6 @@
               "value": "={{ $json.lng }}"
             },
             {
-              "name": "appid",
-              "value": "={{ $env.OPENWEATHERMAP_API_KEY }}"
-            },
-            {
               "name": "units",
               "value": "metric"
             }
@@ -75,7 +77,16 @@
       "name": "Weather",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [620, 200]
+      "position": [
+        620,
+        200
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "",
+          "name": "OpenWeatherMap API key"
+        }
+      }
     },
     {
       "parameters": {
@@ -86,17 +97,23 @@
       "name": "Merge",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2,
-      "position": [820, 200]
+      "position": [
+        820,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Assemble the OpenRouter payload. The Merge node passes through either\n// the weather result (location granted) or the webhook data (no location).\nconst hook = $('Webhook (analyze)').first().json;\nconst source = $('Merge').first().json;\n\nconst hasWeather =\n  source && source.main && (source.main.temp !== undefined || source.main.humidity !== undefined);\nconst temp = hasWeather ? source.main.temp : 'N/A';\nconst humidity = hasWeather ? source.main.humidity : 'N/A';\n\nreturn [{\n  json: {\n    base64Image: hook.base64Image || '',\n    imageUrl: hook.imageUrl || '',\n    scanId: hook.scanId || '',\n    temp: temp,\n    humidity: humidity,\n    lat: hook.lat || null,\n    lng: hook.lng || null\n  }\n}];"
+        "jsCode": "// Assemble the OpenRouter payload. The Merge node passes through either\n// the weather result (location granted) or the webhook data (no location).\nconst hook = $('Webhook (analyze)').first().json;\nconst source = $('Merge').first().json;\n\nconst hasWeather =\n  source && source.main && (source.main.temp !== undefined || source.main.humidity !== undefined);\nconst temp = hasWeather ? source.main.temp : 'N/A';\nconst humidity = hasWeather ? source.main.humidity : 'N/A';\n\nconst prompt = `You are the PhytoScan AI, a world-class botanist. Analyze the provided image and the environmental data (Temp: ${temp}°C, Humidity: ${humidity}%).\n\nRespond with ONE JSON object, in exactly this schema, following the types EXACTLY:\n{\n  \"identification\": {\n    \"name\": \"string (common plant name)\",\n    \"scientific_name\": \"string (binomial name)\",\n    \"confidence\": \"string stating a percentage, e.g. \\\"87%\\\" (must end with the % sign)\"\n  },\n  \"health_assessment\": {\n    \"status\": \"exactly one of: Healthy, Warning, Critical\",\n    \"diagnosis\": \"string\",\n    \"needs_water\": \"boolean (true or false)\",\n    \"needs_medicine\": \"boolean (true or false)\"\n  },\n  \"light_analysis\": {\n    \"current_light\": \"string\",\n    \"recommendation\": \"string\"\n  },\n  \"care_instructions\": {\n    \"watering_frequency\": \"string\",\n    \"soil_type\": \"string\",\n    \"toxicity\": \"exactly one of: Safe, Toxic for pets\"\n  },\n  \"environmental_impact\": \"string — how the current local weather (${temp}/${humidity}) affects this specific plant.\",\n  \"fun_fact\": \"string\"\n}\n\nHARD RULES:\n- Return ONLY a valid JSON object — no markdown, no code fences, no preface, no trailing text.\n- confidence MUST be a string ending with \"%\".\n- status MUST be exactly one of Healthy / Warning / Critical.\n- toxicity MUST be exactly one of Safe / Toxic for pets.\n- needs_water and needs_medicine MUST be JSON booleans (true/false), never strings.\n- Do not use ellipses or placeholders — always fill real text values.\n- If there are spots or lesions on leaves, name the specific fungus, pest, or deficiency in \"diagnosis\".`;\n\nconst encoded = $('Encode image').first().json;\nconst imagePart = encoded && encoded.imageUrl\n  ? [{ type: 'image_url', image_url: { url: encoded.imageUrl } }]\n  : [];\n\nreturn [{\n  json: {\n    messages: [{\n      role: 'user',\n      content: [{ type: 'text', text: prompt }, ...imagePart]\n    }],\n    scanId: hook.scanId || '',\n    imageUrl: hook.imageUrl || '',\n    temp: temp,\n    humidity: humidity,\n    lat: hook.lat || null,\n    lng: hook.lng || null\n  }\n}];"
       },
       "id": "build-context",
       "name": "Build context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1020, 200]
+      "position": [
+        1020,
+        200
+      ]
     },
     {
       "parameters": {
@@ -106,10 +123,6 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "Authorization",
-              "value": "Bearer ={{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
               "name": "X-Title",
               "value": "PhytoScan App"
             }
@@ -117,23 +130,35 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"model\": \"={{ $env.OPENROUTER_MODEL }}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"You are the PhytoScan AI, a world-class botanist. Analyze the provided image and the environmental data (Temp: {{ $json.temp }}°C, Humidity: {{ $json.humidity }}%). Provide a JSON response with this exact structure: { \\\"identification\\\": { \\\"name\\\": \\\"string\\\", \\\"scientific_name\\\": \\\"string\\\", \\\"confidence\\\": \\\"0-100%\\\" }, \\\"health_assessment\\\": { \\\"status\\\": \\\"Healthy/Warning/Critical\\\", \\\"diagnosis\\\": \\\"string\\\", \\\"needs_water\\\": boolean, \\\"needs_medicine\\\": boolean }, \\\"light_analysis\\\": { \\\"current_light\\\": \\\"string\\\", \\\"recommendation\\\": \\\"string\\\" }, \\\"care_instructions\\\": { \\\"watering_frequency\\\": \\\"string\\\", \\\"soil_type\\\": \\\"string\\\", \\\"toxicity\\\": \\\"Safe/Toxic for pets\\\" }, \\\"environmental_impact\\\": \\\"How the current local weather ({{ $json.temp }}/{{ $json.humidity }}) affects this specific plant.\\\", \\\"fun_fact\\\": \\\"string\\\" } Be extremely precise. If there are spots on leaves, identify the specific fungus or pest. Return ONLY valid JSON, no markdown.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:image/jpeg;base64,{{ $json.base64Image }}\"\n          }\n        }\n      ]\n    }\n  ]\n}"
+        "jsonBody": "={{ JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages: $json.messages }) }}"
       },
       "id": "openrouter",
       "name": "OpenRouter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1220, 200]
+      "position": [
+        1220,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "OpenRouter API key"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.all()[0].json;\nconst content = raw.choices?.[0]?.message?.content;\nif (!content) throw new Error('No content from OpenRouter');\n\nconst cleaned = String(content).replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim();\nlet analysis;\ntry {\n  analysis = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('AI response was not valid JSON');\n}\n\nconst ctx = $('Build context').first().json;\n\nreturn [{\n  json: {\n    analysis: analysis,\n    imageUrl: ctx.imageUrl || '',\n    temp: ctx.temp,\n    humidity: ctx.humidity,\n    lat: ctx.lat,\n    lng: ctx.lng,\n    created_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const raw = $input.all()[0].json;\nconst msg = raw.choices?.[0]?.message ?? {};\nconst content = Array.isArray(msg.content)\n  ? msg.content.map((part) => part.text ?? part.content ?? '').join('')\n  : (msg.content || msg.reasoning || '');\n\nif (!String(content).trim()) {\n  throw new Error('No content from OpenRouter. Raw: ' + JSON.stringify(raw).slice(0, 400));\n}\n\nconst cleaned = String(content).replace(/^```(?:json)?\\s*|\\s*```$/g, '').trim();\nlet analysis;\ntry {\n  analysis = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('AI response was not valid JSON: ' + cleaned.slice(0, 200));\n}\n\nconst ctx = $('Build context').first().json;\n\nreturn [{\n  json: {\n    analysis: analysis,\n    imageUrl: ctx.imageUrl || '',\n    temp: ctx.temp,\n    humidity: ctx.humidity,\n    lat: ctx.lat,\n    lng: ctx.lng,\n    created_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "extract-parse",
       "name": "Clean result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1420, 160]
+      "position": [
+        1420,
+        160
+      ]
     },
     {
       "parameters": {
@@ -144,7 +169,60 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1620, 160]
+      "position": [
+        1620,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Resolve image').first().json.url }}",
+        "sendBody": false,
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "fetch-image",
+      "name": "Fetch image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resolved = $('Resolve image').first().json;\nif (resolved.dataUrl) return [{ json: { imageUrl: resolved.dataUrl } }];\n\nconst item = $input.all()[0];\nif (item && item.binary && item.binary.data) {\n  const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n  if (buffer && buffer.length > 0) {\n    const mime = item.binary.data.mimeType || 'image/jpeg';\n    return [{ json: { imageUrl: 'data:' + mime + ';base64,' + buffer.toString('base64') } }];\n  }\n}\n\nconst hook = $('Webhook (analyze)').first().json;\nthrow new Error('No image received. Webhook keys: ' + Object.keys(hook).join(', ') + ' | imageUrl: ' + (hook.imageUrl || '(none)') + ' | base64Image: ' + (hook.base64Image ? '(present, length ' + String(hook.base64Image).length + ')' : '(none)'));"
+      },
+      "id": "encode-image",
+      "name": "Encode image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        130
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const hook = $('Webhook (analyze)').first().json;\nconst raw =\n  typeof hook.imageUrl === 'string' && hook.imageUrl.trim() !== '' ? hook.imageUrl\n  : (typeof hook.base64Image === 'string' && hook.base64Image.trim() !== '' ? hook.base64Image\n  : '');\nconst dataUrl = raw.startsWith('data:') ? raw : '';\nreturn [{ json: { ...hook, url: dataUrl ? '' : raw, dataUrl } }];"
+      },
+      "id": "resolve-image",
+      "name": "Resolve image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        420
+      ]
     }
   ],
   "connections": {
@@ -152,7 +230,7 @@
       "main": [
         [
           {
-            "node": "Has location?",
+            "node": "Resolve image",
             "type": "main",
             "index": 0
           }
@@ -192,7 +270,7 @@
       "main": [
         [
           {
-            "node": "Build context",
+            "node": "Fetch image",
             "type": "main",
             "index": 0
           }
@@ -226,6 +304,39 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch image": {
+      "main": [
+        [
+          {
+            "node": "Encode image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encode image": {
+      "main": [
+        [
+          {
+            "node": "Build context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve image": {
+      "main": [
+        [
+          {
+            "node": "Has location?",
             "type": "main",
             "index": 0
           }
