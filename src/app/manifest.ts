@@ -11,6 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "صوّر نبتة لتحديد نوعها وتقييم صحّتها والحصول على إرشادات العناية المناسبة. رفيق صحة نباتاتك على هاتفك.",
     lang: "ar",
     dir: "rtl",
+    id: "/",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

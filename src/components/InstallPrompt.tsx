@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { X } from "lucide-react";
+import { Download, X } from "lucide-react";
+
+// beforeinstallprompt is a Chromium-only event not in the standard TS DOM lib.
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+}
+
+type InstallPromptEvent = BeforeInstallPromptEvent;
 
 // Server snapshot is always false; client snapshot reflects the real value.
 // useSyncExternalStore avoids React-Compiler lint (no setState in effect) and
@@ -30,52 +38,103 @@ function isStandalone(): boolean {
   );
 }
 
+function isSupported(): boolean {
+  return typeof window !== "undefined" && "serviceWorker" in navigator;
+}
+
 export function InstallPrompt() {
   const ios = useClientValue(isIOS());
   const installed = useClientValue(isStandalone());
+  const supported = useClientValue(isSupported());
+  const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // iOS shows no native install prompt, so the hint below guides manual
-    // install. On Android the native prompt is enough; the service worker is
-    // registered here so the app opens instantly, even offline.
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js", { scope: "/", updateViaCache: "none" })
-        .catch(() => {});
-    }
-  }, []);
+    if (!supported) return;
 
-  if (installed || !ios || dismissed) return null;
+    // Register the service worker (app shell / instant offline open).
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .catch(() => {});
 
-  return (
-    <div
-      role="status"
-      className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-4 max-w-md px-4"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      <div className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-border bg-popover p-4 shadow-card">
-        <div className="flex-1 text-sm">
-          <p className="font-semibold text-foreground">ثبّت PhytoScan على شاشتك الرئيسية</p>
-          <p className="mt-1 text-muted-foreground">
-            اضغط زر المشاركة{" "}
-            <span
-              aria-hidden="true"
-              className="mx-0.5 inline-flex h-5 w-5 translate-y-0.5 items-center justify-center rounded-lg bg-muted"
-            >
-              ⎋
-            </span>{" "}
-            ثم اختر «إضافة إلى الشاشة الرئيسية» لاستخدام التطبيق بملء الشاشة وفتح أسرع.
-          </p>
-        </div>
+    // Chromium fires this when the app is installable. Capturing it lets us
+    // offer our own install button instead of waiting on browser UI. The
+    // handle is only valid once, so we consume it on click.
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferred(e as InstallPromptEvent);
+    };
+    const onInstalled = () => setDeferred(null);
+
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, [supported]);
+
+  // Already installed -> nothing to show.
+  if (installed) return null;
+
+  // Chromium gave us an install handle -> native install button.
+  if (deferred) {
+    return (
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-4 flex max-w-md items-center justify-between gap-3 px-4"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <span className="text-sm font-semibold text-white">
+          ثبّت PhytoScan لفتح أسرع وبدون اتصال
+        </span>
         <button
-          onClick={() => setDismissed(true)}
-          className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="إغلاق"
+          onClick={async () => {
+            await deferred.prompt();
+            const choice = await deferred.userChoice;
+            if (choice.outcome === "accepted") setDeferred(null);
+          }}
+          className="flex items-center gap-2 rounded-full bg-[#15803d] px-4 py-2 text-sm font-semibold text-white transition-transform active:scale-95"
         >
-          <X className="h-4 w-4" />
+          <Download className="h-4 w-4" />
+          تثبيت
         </button>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // iOS has no install prompt -> guide the user manually.
+  if (ios && !dismissed) {
+    return (
+      <div
+        role="status"
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-4 max-w-md px-4"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-border bg-popover p-4 shadow-card">
+          <div className="flex-1 text-sm">
+            <p className="font-semibold text-foreground">ثبّت PhytoScan على شاشتك الرئيسية</p>
+            <p className="mt-1 text-muted-foreground">
+              اضغط زر المشاركة{" "}
+              <span
+                aria-hidden="true"
+                className="mx-0.5 inline-flex h-5 w-5 translate-y-0.5 items-center justify-center rounded-lg bg-muted"
+              >
+                ⎋
+              </span>{" "}
+              ثم اختر «إضافة إلى الشاشة الرئيسية» لاستخدام التطبيق بملء الشاشة وفتح أسرع.
+            </p>
+          </div>
+          <button
+            onClick={() => setDismissed(true)}
+            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="إغلاق"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
