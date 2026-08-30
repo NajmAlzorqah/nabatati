@@ -44,7 +44,7 @@ export function PlantDoctorChat({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, sending]);
 
   if (!scan) return null;
 
@@ -96,7 +96,7 @@ export function PlantDoctorChat({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto h-[85dvh] w-full max-w-2xl"
+        className="mx-auto max-h-[85dvh] w-full max-w-2xl"
       >
         <SheetHeader className="border-b border-border">
           <div className="flex items-center gap-2">
@@ -141,6 +141,24 @@ export function PlantDoctorChat({
             <div className="self-start max-w-[80%] rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
               تعذّر إرسال رسالتك: {sendError}. حاول مرة أخرى.
             </div>
+          )}
+          {sending && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="self-end flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-muted px-4 py-3"
+              role="status"
+              aria-label="الطبيب النباتي يكتب…"
+            >
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="h-2 w-2 rounded-full bg-[#15803d]"
+                  animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                />
+              ))}
+            </motion.div>
           )}
           <div ref={endRef} />
         </div>
