@@ -18,19 +18,17 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export async function compressImage(
-  blob: Blob,
+  file: File | Blob,
   quality = START_QUALITY,
 ): Promise<CompressedImage> {
-  // Object URLs avoid re-reading the blob back into a data URL, which an
-  // already-decoded capture (or a File from the gallery) does not need.
-  const objectUrl = URL.createObjectURL(blob);
-  let img: HTMLImageElement;
-  try {
-    img = await loadImage(objectUrl);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 
+  const img = await loadImage(dataUrl);
   const scale = Math.min(1, MAX_DIMENSION / Math.max(img.width, img.height));
   const width = Math.round(img.width * scale);
   const height = Math.round(img.height * scale);
