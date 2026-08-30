@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#15803d" />
+    <title>لا يوجد اتصال · PhytoScan</title>
+    <style>
+      :root {
+        --accent: #15803d;
+        --surface: #059669;
+        --background: #020817;
+        --border: #dcfce7;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
+        background: var(--background);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        max-width: 360px;
+        width: 100%;
+        text-align: center;
+      }
+      .badge {
+        width: 88px;
+        height: 88px;
+        margin: 0 auto 24px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, var(--surface), var(--accent));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+      }
+      h1 {
+        font-size: 30px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -0.75px;
+        margin-bottom: 12px;
+      }
+      p {
+        font-size: 14px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.72);
+        margin-bottom: 28px;
+      }
+      button {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        color: #ffffff;
+        background: var(--accent);
+        border: none;
+        border-radius: 9999px;
+        padding: 12px 28px;
+        cursor: pointer;
+        transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      button:active {
+        transform: scale(0.96);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge" aria-hidden="true">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M20 4C14 4 7 7 5 12c-2 5 0 9 0 9s4-2 7-2c6 0 9-6 9-10 0-4-1-5-1-5Z"
+            fill="#ffffff"
+          />
+          <path d="M19 5 12 12" stroke="#15803d" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </div>
+      <h1>لا يوجد اتصال</h1>
+      <p>
+        لاحظ أنَّ فحص النبات وتحليل صحته يحتاجان اتصالًا بالإنترنت. تحقّق من
+        شبكتك ثم حاول مجددًا.
+      </p>
+      <button onclick="location.reload()">إعادة المحاولة</button>
+    </div>
+  </body>
+</html>

@@ -147,4 +147,23 @@
   [dir="rtl"] .tracking-tighter {
     letter-spacing: 0;
   }
+
+  /* PWA: fullscreen standalone apps must respect device notches. */
+  html,
+  body {
+    height: 100%;
+    overscroll-behavior-y: none;
+  }
+  /* Prevent pinch-zoom on the camera UI when installed as an app. */
+  body {
+    touch-action: manipulation;
+  }
+}
+
+/* Safe-area utilities for notch-equipped devices in fullscreen mode. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
