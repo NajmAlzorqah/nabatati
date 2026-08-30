@@ -94,7 +94,10 @@ export function PlantDoctorChat({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85dvh]">
+      <SheetContent
+        side="bottom"
+        className="mx-auto h-[85dvh] w-full max-w-2xl"
+      >
         <SheetHeader className="border-b border-border">
           <div className="flex items-center gap-2">
             <HeartPulse className="h-5 w-5 text-[#15803d]" />
@@ -105,7 +108,7 @@ export function PlantDoctorChat({
           </p>
         </SheetHeader>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -127,8 +130,8 @@ export function PlantDoctorChat({
               key={m.id}
               className={
                 m.role === "user"
-                  ? "self-end max-w-[80%] rounded-2xl rounded-bl-sm bg-[#15803d] px-4 py-2.5 text-sm leading-relaxed text-white"
-                  : "self-start max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
+                  ? "self-start max-w-[80%] rounded-2xl rounded-br-sm bg-[#15803d] px-4 py-2.5 text-sm leading-relaxed text-white"
+                  : "self-end max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
               }
             >
               {m.content}

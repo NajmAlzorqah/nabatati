@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Camera, ImagePlus } from "lucide-react";
+import { BookOpen, Camera, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   WebcamWrapper,
@@ -11,10 +11,11 @@ import {
 
 type CameraViewProps = {
   onCapture: (dataUrl: string) => void;
+  onOpenPassport?: () => void;
   error?: string | null;
 };
 
-export function CameraView({ onCapture, error }: CameraViewProps) {
+export function CameraView({ onCapture, onOpenPassport, error }: CameraViewProps) {
   const webcamRef = useRef<WebcamWrapperHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -55,36 +56,44 @@ export function CameraView({ onCapture, error }: CameraViewProps) {
       </motion.div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-[78%] w-[78%] max-w-sm rounded-[2rem] border-2 border-white/40" />
+        <div className="h-[min(78%,80vw)] w-[min(78%,80vw)] rounded-[2rem] border-2 border-white/40 sm:h-[78%] sm:w-[min(78%,22rem)]" />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#020817] via-[#020817]/70 to-transparent pb-6 pt-20">
-        <div className="flex items-center justify-center gap-6 px-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="pointer-events-auto h-14 w-14 rounded-full bg-white/10 text-white"
-            onClick={() => fileRef.current?.click()}
-            aria-label="رفع صورة نبات"
-          >
-            <ImagePlus className="h-6 w-6" />
-          </Button>
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={capture}
-            aria-label="التقاط صورة"
-            className="pointer-events-auto rounded-full border-4 border-white bg-white/20 p-1"
-          >
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#15803d]">
-              <Camera className="h-7 w-7" />
-            </span>
-          </motion.button>
-          <div className="h-14 w-14" aria-hidden />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#020817] via-[#020817]/70 to-transparent pb-6 pt-20">
+          <div className="flex items-center justify-center gap-6 px-6">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="pointer-events-auto h-14 w-14 rounded-full bg-white/10 text-white"
+              onClick={() => fileRef.current?.click()}
+              aria-label="رفع صورة نبات"
+            >
+              <ImagePlus className="h-6 w-6" />
+            </Button>
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={capture}
+              aria-label="التقاط صورة"
+              className="pointer-events-auto rounded-full border-4 border-white bg-white/20 p-1"
+            >
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#15803d]">
+                <Camera className="h-7 w-7" />
+              </span>
+            </motion.button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="pointer-events-auto h-14 w-14 rounded-full bg-white/10 text-white"
+              onClick={onOpenPassport}
+              aria-label="عرض جواز سفر النبات"
+            >
+              <BookOpen className="h-6 w-6" />
+            </Button>
+          </div>
+          {(error || err) && (
+            <p className="mt-4 px-6 text-center text-sm text-white/80">{error ?? err}</p>
+          )}
         </div>
-        {(error || err) && (
-          <p className="mt-4 px-6 text-center text-sm text-white/80">{error ?? err}</p>
-        )}
-      </div>
 
       <input
         ref={fileRef}

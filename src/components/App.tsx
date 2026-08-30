@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Moon, ScanLine, Sun } from "lucide-react";
+import { ArrowRight, BookOpen, Moon, ScanLine, Sun } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useTheme } from "@/components/theme-provider";
 import { CameraView } from "@/components/camera/CameraView";
@@ -18,7 +18,7 @@ import { randomId } from "@/lib/utils";
 import { getSupabase, uploadPlantImage } from "@/lib/supabase";
 import type { ScanResult } from "@/lib/types";
 
-type Step = "camera" | "uploading" | "analyzing" | "result";
+type Step = "camera" | "uploading" | "analyzing" | "result" | "passport";
 
 export function App() {
   const { theme, toggle } = useTheme();
@@ -104,6 +104,11 @@ export function App() {
     setStep("result");
   }, []);
 
+  const openPassport = useCallback(() => {
+    setError(null);
+    setStep("passport");
+  }, []);
+
   const analyzing = step === "uploading" || step === "analyzing";
 
   return (
@@ -116,7 +121,62 @@ export function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <CameraView onCapture={handleCapture} error={error} />
+            <CameraView
+              onCapture={handleCapture}
+              onOpenPassport={openPassport}
+              error={error}
+            />
+          </motion.div>
+        ) : step === "passport" ? (
+          <motion.div
+            key="passport"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col px-4 py-6"
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <button
+                onClick={() => setStep("camera")}
+                className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                aria-label="العودة إلى الكاميرا"
+              >
+                <ArrowRight className="h-4 w-4" />
+                رجوع
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <BookOpen className="h-5 w-5 text-[#15803d]" />
+                  <span className="text-[#15803d]">جواز السفر</span>
+                </span>
+              </div>
+              <button
+                onClick={toggle}
+                className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                aria-label="تبديل المظهر"
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
+            <h1 className="font-heading text-[30px] leading-tight tracking-tight">
+              جواز سفر النبات
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              كل نباتاتك المفحوصة في مكان واحد.
+            </p>
+
+            <div className="mt-6">
+              <PlantPassport
+                latestId={captured ?? undefined}
+                onSelect={selectScan}
+                variant="grid"
+              />
+            </div>
           </motion.div>
         ) : analyzing ? (
           <motion.div
