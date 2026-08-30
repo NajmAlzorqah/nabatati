@@ -27,6 +27,14 @@ export async function uploadPlantImage(
   return data.publicUrl;
 }
 
+export async function deletePlantImage(scanId: string): Promise<void> {
+  const db = getSupabase();
+  if (!db) return;
+  // Best-effort: a missing object should not block the row delete.
+  const filePath = `${scanId}.jpg`;
+  await db.storage.from(config.supabaseBucket).remove([filePath]);
+}
+
 function dataUrlToBlob(dataUrl: string): Blob {
   const [meta, b64] = dataUrl.split(",");
   const mime = meta.match(/data:(.*?);/)?.[1] ?? "image/jpeg";

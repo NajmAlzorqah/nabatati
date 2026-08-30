@@ -1,4 +1,4 @@
-import { getSupabase } from "./supabase";
+import { deletePlantImage, getSupabase } from "./supabase";
 import { statusString, toxicityString } from "./analysis";
 import { randomId } from "./utils";
 import type { ChatMessage, PlantAnalysis, ScanResult } from "./types";
@@ -61,6 +61,22 @@ export async function getRecentScans(limit = 10): Promise<ScanResult[]> {
     return (data ?? []).map((row) => toScanResult(row));
   }
   return readLS().slice(0, limit);
+}
+
+export async function deleteScan(scanId: string): Promise<void> {
+  const db = getSupabase();
+  if (db) {
+    // chat_messages cascade via the plants FK (ON DELETE CASCADE); explicitly
+    // remove the stored image too.
+    await deletePlantImage(scanId);
+    const { error } = await db.from("plants").delete().eq("id", scanId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  // localStorage fallback for demo / unconfigured mode.
+  const scans = readLS().filter((s) => s.id !== scanId);
+  localStorage.setItem(LS_SCANS_KEY, JSON.stringify(scans));
+  localStorage.removeItem(LS_CHAT_PREFIX + scanId);
 }
 
 export async function saveChatMessage(

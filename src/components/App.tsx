@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, BookOpen, Moon, ScanLine, Sun } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -18,12 +18,30 @@ import { randomId } from "@/lib/utils";
 import { getSupabase, uploadPlantImage } from "@/lib/supabase";
 import type { ScanResult } from "@/lib/types";
 
-type Step = "camera" | "uploading" | "analyzing" | "result" | "passport";
+type Screen =
+  | { name: "camera" }
+  | { name: "passport" }
+  | { name: "result"; scanId: string };
+
+type Phase = "idle" | "uploading" | "analyzing";
+
+const ROOT: Screen = { name: "camera" };
 
 export function App() {
   const { theme, toggle } = useTheme();
   const { coords } = useGeolocation();
-  const [step, setStep] = useState<Step>("camera");
+
+  // The view stack is the single source of truth for navigation. Every screen
+  // lives in an in-memory stack whose depth is mirrored by real browser
+  // history entries, so the native/PWA back gesture (popstate) walks the same
+  // stack as the on-screen back buttons instead of quitting the app.
+  const [stack, setStack] = useState<Screen[]>([ROOT]);
+  const stackRef = useRef(stack);
+  useEffect(() => {
+    stackRef.current = stack;
+  }, [stack]);
+
+  const [phase, setPhase] = useState<Phase>("idle");
   const [captured, setCaptured] = useState<string | null>(null);
   const [luminance, setLuminance] = useState(0.5);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -31,18 +49,64 @@ export function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatScan, setChatScan] = useState<ScanResult | null>(null);
 
+  const current = stack[stack.length - 1];
+
+  const push = useCallback((screen: Screen) => {
+    const next = [...stackRef.current, screen];
+    stackRef.current = next;
+    setStack(next);
+    if (typeof window !== "undefined") {
+      window.history.pushState({}, "");
+    }
+  }, []);
+
+  const resetToCamera = useCallback(() => {
+    stackRef.current = [ROOT];
+    setStack([ROOT]);
+    if (typeof window !== "undefined") {
+      // Single snapshot so the root entry is the app's home; a subsequent
+      // native back from here lets the OS close the app.
+      window.history.replaceState({}, "");
+    }
+  }, []);
+
+  // Single place that handles every "go back" — shared by the native back
+  // gesture (popstate) and the on-screen back buttons (via history.back()).
+  const goBack = useCallback(() => {
+    // A modal is open on top: close it first and re-push the history entry we
+    // consumed, keeping the browser history aligned with the in-memory stack.
+    if (chatOpen) {
+      setChatOpen(false);
+      if (typeof window !== "undefined") {
+        window.history.forward();
+      }
+      return;
+    }
+    // Root (home) — nothing left to step back to. Let the OS close/minimize.
+    if (stackRef.current.length <= 1) return;
+    const next = stackRef.current.slice(0, -1);
+    stackRef.current = next;
+    setStack(next);
+  }, [chatOpen]);
+
+  useEffect(() => {
+    const onPop = () => goBack();
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [goBack]);
+
   const handleCapture = useCallback(
     async (dataUrl: string) => {
       setCaptured(dataUrl);
       setError(null);
-      setStep("uploading");
+      setPhase("uploading");
       setLuminance(luminanceFromDataUrl(dataUrl));
 
       try {
         const compressed = await compressImage(
           await dataUrlToBlob(dataUrl),
         );
-        setStep("analyzing");
+        setPhase("analyzing");
 
         const scanId = randomId();
 
@@ -75,22 +139,25 @@ export function App() {
         };
         await saveScan(scan);
         setResult(scan);
-        setStep("result");
+        setPhase("idle");
+        push({ name: "result", scanId: scan.id });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "حدث خطأ ما";
         setError(msg);
-        setStep("camera");
+        setPhase("idle");
+        resetToCamera();
       }
     },
-    [coords],
+    [coords, push, resetToCamera],
   );
 
   const retake = useCallback(() => {
     setResult(null);
     setCaptured(null);
     setError(null);
-    setStep("camera");
-  }, []);
+    setPhase("idle");
+    resetToCamera();
+  }, [resetToCamera]);
 
   const openDoctor = useCallback(() => {
     if (!result) return;
@@ -98,23 +165,45 @@ export function App() {
     setChatOpen(true);
   }, [result]);
 
-  const selectScan = useCallback((scan: ScanResult) => {
-    setResult(scan);
-    setCaptured(scan.imageUrl);
-    setStep("result");
-  }, []);
+  const selectScan = useCallback(
+    (scan: ScanResult) => {
+      setResult(scan);
+      setCaptured(scan.imageUrl);
+      push({ name: "result", scanId: scan.id });
+    },
+    [push],
+  );
+
+  const handleDeletedScan = useCallback(
+    (scanId: string) => {
+      // If the scan being deleted is the one currently displayed in the result
+      // view, clear it and pop back to the previous screen (the passport grid,
+      // camera, or wherever the user came from).
+      if (current.name === "result" && result?.id === scanId) {
+        setResult(null);
+        setChatScan(null);
+        setChatOpen(false);
+        if (typeof window !== "undefined") {
+          window.history.back();
+        }
+      }
+    },
+    [current.name, result],
+  );
 
   const openPassport = useCallback(() => {
     setError(null);
-    setStep("passport");
-  }, []);
+    push({ name: "passport" });
+  }, [push]);
 
-  const analyzing = step === "uploading" || step === "analyzing";
+  const analyzing = phase === "uploading" || phase === "analyzing";
+
+  const showBackOnResult = current.name === "result" && stack.length > 1;
 
   return (
     <div className="min-h-[100dvh] w-full bg-background text-foreground">
       <AnimatePresence mode="wait">
-        {step === "camera" ? (
+        {current.name === "camera" ? (
           <motion.div
             key="camera"
             initial={{ opacity: 0 }}
@@ -127,7 +216,7 @@ export function App() {
               error={error}
             />
           </motion.div>
-        ) : step === "passport" ? (
+        ) : current.name === "passport" ? (
           <motion.div
             key="passport"
             initial={{ opacity: 0 }}
@@ -137,9 +226,9 @@ export function App() {
           >
             <div className="mb-6 flex items-center justify-between">
               <button
-                onClick={() => setStep("camera")}
+                onClick={() => window.history.back()}
                 className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-                aria-label="العودة إلى الكاميرا"
+                aria-label="العودة إلى الشاشة السابقة"
               >
                 <ArrowRight className="h-4 w-4" />
                 رجوع
@@ -174,6 +263,7 @@ export function App() {
               <PlantPassport
                 latestId={captured ?? undefined}
                 onSelect={selectScan}
+                onDeleted={handleDeletedScan}
                 variant="grid"
               />
             </div>
@@ -211,18 +301,18 @@ export function App() {
 
             <div className="w-full max-w-sm">
               <h1 className="font-heading text-[30px] leading-tight tracking-tight">
-                {step === "uploading"
+                {phase === "uploading"
                   ? "جارٍ تجهيز الصورة…"
                   : "جارٍ تحليل نباتك…"}
               </h1>
               <p className="mt-1 text-sm text-white/70">
-                {step === "uploading"
+                {phase === "uploading"
                   ? "تحسين الصورة من أجل الفحص."
                   : "فحص صحة النبات ونوعه واحتياجات العناية به."}
               </p>
             </div>
 
-            {step === "analyzing" && (
+            {phase === "analyzing" && (
               <div className="w-full max-w-sm">
                 <LightMeter luminance={luminance} />
               </div>
@@ -239,13 +329,23 @@ export function App() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-medium">
+                  {showBackOnResult && (
+                    <button
+                      onClick={() => window.history.back()}
+                      className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                      aria-label="العودة إلى جواز السفر"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                      رجوع
+                    </button>
+                  )}
                   <span className="text-[#15803d]">PhytoScan</span>
                 </div>
-<button
-          onClick={toggle}
-          className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          aria-label="تبديل المظهر"
-        >
+                <button
+                  onClick={toggle}
+                  className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
+                  aria-label="تبديل المظهر"
+                >
                   {theme === "dark" ? (
                     <Sun className="h-4 w-4" />
                   ) : (
@@ -281,7 +381,7 @@ export function App() {
                 امسح نباتًا آخر
               </button>
 
-              <PlantPassport latestId={result.id} onSelect={selectScan} />
+              <PlantPassport latestId={result.id} onSelect={selectScan} onDeleted={handleDeletedScan} />
             </motion.div>
           )
         )}

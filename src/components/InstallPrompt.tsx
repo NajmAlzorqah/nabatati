@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Download, X } from "lucide-react";
+import { X } from "lucide-react";
+import { InstallDialog } from "@/components/InstallDialog";
 
 // beforeinstallprompt is a Chromium-only event not in the standard TS DOM lib.
 interface BeforeInstallPromptEvent extends Event {
@@ -58,8 +59,8 @@ export function InstallPrompt() {
       .catch(() => {});
 
     // Chromium fires this when the app is installable. Capturing it lets us
-    // offer our own install button instead of waiting on browser UI. The
-    // handle is only valid once, so we consume it on click.
+    // offer our own install dialog instead of waiting on browser UI. The
+    // handle is only valid once, so we consume it on install.
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as InstallPromptEvent);
@@ -77,29 +78,9 @@ export function InstallPrompt() {
   // Already installed -> nothing to show.
   if (installed) return null;
 
-  // Chromium gave us an install handle -> native install button.
+  // Chromium gave us an install handle -> polished install confirmation popup.
   if (deferred) {
-    return (
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto mb-4 flex max-w-md items-center justify-between gap-3 px-4"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        <span className="text-sm font-semibold text-white">
-          ثبّت PhytoScan لفتح أسرع وبدون اتصال
-        </span>
-        <button
-          onClick={async () => {
-            await deferred.prompt();
-            const choice = await deferred.userChoice;
-            if (choice.outcome === "accepted") setDeferred(null);
-          }}
-          className="flex items-center gap-2 rounded-full bg-[#15803d] px-4 py-2 text-sm font-semibold text-white transition-transform active:scale-95"
-        >
-          <Download className="h-4 w-4" />
-          تثبيت
-        </button>
-      </div>
-    );
+    return <InstallDialog deferred={deferred} onClose={() => setDeferred(null)} />;
   }
 
   // iOS has no install prompt -> guide the user manually.
