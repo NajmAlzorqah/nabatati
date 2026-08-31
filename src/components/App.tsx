@@ -203,7 +203,57 @@ export function App() {
   return (
     <div className="min-h-[100dvh] w-full bg-background text-foreground">
       <AnimatePresence mode="wait">
-        {current.name === "camera" ? (
+        {analyzing ? (
+          <motion.div
+            key="analyzing"
+            initial={{ opacity: 0, scale: 1.02 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-[#020817] px-6 text-center"
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="relative h-64 w-64 overflow-hidden rounded-3xl bg-[#0d1420]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={captured ?? ""}
+                alt="النبات الملتقط"
+                className="absolute inset-0 h-full w-full object-cover opacity-60"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <motion.div
+                  animate={{ scale: [1, 1.06, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="rounded-full bg-[#15803d]/80 p-4"
+                >
+                  <ScanLine className="h-10 w-10 text-white" />
+                </motion.div>
+              </div>
+            </motion.div>
+
+            <div className="w-full max-w-sm">
+              <h1 className="font-heading text-[30px] leading-tight tracking-tight">
+                {phase === "uploading"
+                  ? "جارٍ تجهيز الصورة…"
+                  : "جارٍ تحليل نباتك…"}
+              </h1>
+              <p className="mt-1 text-sm text-white/70">
+                {phase === "uploading"
+                  ? "تحسين الصورة من أجل الفحص."
+                  : "فحص صحة النبات ونوعه واحتياجات العناية به."}
+              </p>
+            </div>
+
+            {phase === "analyzing" && (
+              <div className="w-full max-w-sm">
+                <LightMeter luminance={luminance} />
+              </div>
+            )}
+          </motion.div>
+        ) : current.name === "camera" ? (
           <motion.div
             key="camera"
             initial={{ opacity: 0 }}
@@ -267,56 +317,6 @@ export function App() {
                 variant="grid"
               />
             </div>
-          </motion.div>
-        ) : analyzing ? (
-          <motion.div
-            key="analyzing"
-            initial={{ opacity: 0, scale: 1.02 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-[#020817] px-6 text-center"
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="relative h-64 w-64 overflow-hidden rounded-3xl bg-[#0d1420]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={captured ?? ""}
-                alt="النبات الملتقط"
-                className="absolute inset-0 h-full w-full object-cover opacity-60"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ scale: [1, 1.06, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className="rounded-full bg-[#15803d]/80 p-4"
-                >
-                  <ScanLine className="h-10 w-10 text-white" />
-                </motion.div>
-              </div>
-            </motion.div>
-
-            <div className="w-full max-w-sm">
-              <h1 className="font-heading text-[30px] leading-tight tracking-tight">
-                {phase === "uploading"
-                  ? "جارٍ تجهيز الصورة…"
-                  : "جارٍ تحليل نباتك…"}
-              </h1>
-              <p className="mt-1 text-sm text-white/70">
-                {phase === "uploading"
-                  ? "تحسين الصورة من أجل الفحص."
-                  : "فحص صحة النبات ونوعه واحتياجات العناية به."}
-              </p>
-            </div>
-
-            {phase === "analyzing" && (
-              <div className="w-full max-w-sm">
-                <LightMeter luminance={luminance} />
-              </div>
-            )}
           </motion.div>
         ) : (
           result && (
