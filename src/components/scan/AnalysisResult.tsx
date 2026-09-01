@@ -14,12 +14,7 @@ import {
 import type { PlantAnalysis } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const statusStyles: Record<string, string> = {
-  صحي: "bg-[#dcfce7] text-[#166534] dark:bg-[#15803d]/20 dark:text-[#86efac]",
-  إنذار: "bg-[#fef3c7] text-[#92400e] dark:bg-amber-500/20 dark:text-amber-300",
-  حرج: "bg-[#fee2e2] text-[#991b1b] dark:bg-red-500/20 dark:text-red-300",
-};
+import { healthTone } from "@/lib/styles";
 
 export function AnalysisResult({
   analysis,
@@ -38,7 +33,7 @@ export function AnalysisResult({
     >
       <Card>
         <CardHeader className="pb-2">
-          <Badge className={`w-fit ${statusStyles[a.health_assessment.status]}`}>
+          <Badge className={`w-fit ${healthTone[a.health_assessment.status]}`}>
             {a.health_assessment.status}
           </Badge>
           <CardTitle className="font-heading text-[30px] leading-tight tracking-tight">
@@ -68,7 +63,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Droplets className="h-4 w-4 text-[#15803d]" /> الري
+              <Droplets className="h-4 w-4 text-primary" /> الري
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -84,7 +79,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sprout className="h-4 w-4 text-[#15803d]" /> التربة
+              <Sprout className="h-4 w-4 text-primary" /> التربة
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -95,7 +90,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-4 w-4 text-[#15803d]" /> الضوء
+              <Lightbulb className="h-4 w-4 text-primary" /> الضوء
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -109,7 +104,7 @@ export function AnalysisResult({
         <Card className="col-span-2 sm:col-span-1">
           <CardHeader className="pb-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <PawPrint className="h-4 w-4 text-[#15803d]" /> السمّية
+              <PawPrint className="h-4 w-4 text-primary" /> السمّية
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -121,7 +116,7 @@ export function AnalysisResult({
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Leaf className="h-4 w-4 text-[#15803d]" /> الأثر البيئي
+            <Leaf className="h-4 w-4 text-primary" /> الأثر البيئي
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -132,7 +127,7 @@ export function AnalysisResult({
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Quote className="h-4 w-4 text-[#15803d]" /> معلومة طريفة
+            <Quote className="h-4 w-4 text-primary" /> معلومة طريفة
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -141,9 +136,9 @@ export function AnalysisResult({
       </Card>
 
       {a.health_assessment.needs_medicine && (
-        <Card className="border-[#dc2626]/40">
+        <Card className="border-destructive/40">
           <CardHeader className="pb-1">
-            <CardTitle className="flex items-center gap-2 text-base text-[#dc2626]">
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
               <FlaskConical className="h-4 w-4" /> يحتاج إلى علاج
             </CardTitle>
           </CardHeader>
@@ -155,7 +150,7 @@ export function AnalysisResult({
 
       <button
         onClick={onAskDoctor}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[#15803d] px-5 py-3 font-medium text-white transition-transform active:scale-[0.98]"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 font-medium text-white transition-transform active:scale-[0.98]"
       >
         <HeartPulse className="h-4 w-4" />
         اسأل الطبيب النباتي

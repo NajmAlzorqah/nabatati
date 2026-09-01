@@ -5,6 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const comma = dataUrl.indexOf(",");
+  if (comma === -1) throw new Error("Invalid data URL: missing comma separator");
+  const meta = dataUrl.slice(0, comma);
+  const b64 = dataUrl.slice(comma + 1);
+  const mime = meta.match(/data:(.*?);/)?.[1] ?? "image/jpeg";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 export function randomId(): string {
   const c = globalThis.crypto;
   if (c?.randomUUID) return c.randomUUID();

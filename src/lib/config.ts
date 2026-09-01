@@ -4,10 +4,6 @@ export const config = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   supabaseBucket: process.env.NEXT_PUBLIC_SUPABASE_BUCKET ?? "plant-photos",
-  openrouterModel:
-    process.env.OPENROUTER_MODEL ?? "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  openrouterModelChat:
-    process.env.OPENROUTER_MODEL_CHAT ?? "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 } as const;
 
 export const hasSupabase = () =>

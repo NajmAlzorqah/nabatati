@@ -25,7 +25,7 @@ const PRECACHE = [
   "/icon/192",
   "/icon/512",
   "/icon/maskable-512",
-  "/apple-icon",
+  "/apple-icon", // Apple touch icon (image, not a navigable page)
   "/manifest.webmanifest",
 ];
 

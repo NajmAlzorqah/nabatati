@@ -43,9 +43,14 @@ export function ConfirmDeleteDialog({
           aria-modal="true"
           aria-label={title}
         >
-          <button
+          <div
+            role="button"
+            tabIndex={-1}
             aria-label={cancelLabel}
             onClick={close}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" || e.key === "Enter" || e.key === " ") close();
+            }}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
           <motion.div

@@ -25,6 +25,7 @@ export function PlantDoctorChat({
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [persistError, setPersistError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function PlantDoctorChat({
       .then((msgs) => {
         setLoadError(null);
         setSendError(null);
+        setPersistError(null);
         setMessages(msgs);
       })
       .catch((e) => {
@@ -54,6 +56,7 @@ export function PlantDoctorChat({
     setInput("");
     setSending(true);
     setSendError(null);
+    setPersistError(null);
     const userMsg: ChatMessage = {
       id: randomId(),
       scanId: scan.id,
@@ -61,10 +64,26 @@ export function PlantDoctorChat({
       content: text,
       createdAt: new Date().toISOString(),
     };
+    const assistantMsg: ChatMessage = {
+      id: randomId(),
+      scanId: scan.id,
+      role: "assistant",
+      content: "",
+      createdAt: new Date().toISOString(),
+    };
+
     setMessages((m) => [...m, userMsg]);
-    saveChatMessage(scan.id, "user", text).catch((e) => {
-      console.error("Failed to save user chat message:", e);
-    });
+    try {
+      await saveChatMessage(scan.id, "user", text);
+    } catch (e) {
+      setMessages((m) => m.filter((msg) => msg.id !== userMsg.id));
+      setSendError(
+        e instanceof Error ? e.message : "تعذّر حفظ رسالتك محليًا. حاول مرة أخرى.",
+      );
+      setSending(false);
+      return;
+    }
+
     const history = [...messages, userMsg];
     try {
       const reply = await sendPlantDoctorMessage(
@@ -73,20 +92,15 @@ export function PlantDoctorChat({
         history,
         text,
       );
-      const assistantMsg: ChatMessage = {
-        id: randomId(),
-        scanId: scan.id,
-        role: "assistant",
-        content: reply,
-        createdAt: new Date().toISOString(),
-      };
+      assistantMsg.content = reply;
       setMessages((m) => [...m, assistantMsg]);
-      saveChatMessage(scan.id, "assistant", reply).catch((e) => {
-        console.error("Failed to save assistant chat message:", e);
-      });
+      await saveChatMessage(scan.id, "assistant", reply);
     } catch (e) {
       const err = e instanceof Error ? e.message : "Something went wrong";
       setSendError(err);
+      if (assistantMsg.content) {
+        setPersistError("رسالة الطبيب لم تُحفظ. قد تُفقد عند إعادة التحميل.");
+      }
     } finally {
       setSending(false);
     }
@@ -100,7 +114,7 @@ export function PlantDoctorChat({
       >
         <SheetHeader className="border-b border-border">
           <div className="flex items-center gap-2">
-            <HeartPulse className="h-5 w-5 text-[#15803d]" />
+            <HeartPulse className="h-5 w-5 text-primary" />
             <SheetTitle>الطبيب النباتي</SheetTitle>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -130,7 +144,7 @@ export function PlantDoctorChat({
               key={m.id}
               className={
                 m.role === "user"
-                  ? "self-start max-w-[80%] rounded-2xl rounded-br-sm bg-[#15803d] px-4 py-2.5 text-sm leading-relaxed text-white"
+                  ? "self-start max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground"
                   : "self-end max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5 text-sm leading-relaxed"
               }
             >
@@ -140,6 +154,11 @@ export function PlantDoctorChat({
           {sendError && (
             <div className="self-start max-w-[80%] rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
               تعذّر إرسال رسالتك: {sendError}. حاول مرة أخرى.
+            </div>
+          )}
+          {persistError && (
+            <div className="self-start max-w-[80%] rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-300">
+              {persistError}
             </div>
           )}
           {sending && (
@@ -153,7 +172,7 @@ export function PlantDoctorChat({
               {[0, 1, 2].map((i) => (
                 <motion.span
                   key={i}
-                  className="h-2 w-2 rounded-full bg-[#15803d]"
+                  className="h-2 w-2 rounded-full bg-primary"
                   animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
                   transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
                 />

@@ -69,11 +69,11 @@ export function InstallDialog({
               stiffness: 320,
               damping: 28,
             }}
-            className="relative w-full max-w-md overflow-hidden rounded-t-[2rem] bg-[#020817] text-white shadow-elevated sm:mx-4 sm:rounded-[2rem]"
+            className="relative w-full max-w-md overflow-hidden rounded-t-[2rem] bg-background text-white shadow-elevated sm:mx-4 sm:rounded-[2rem]"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             {/* Accent glow header */}
-            <div className="relative bg-gradient-to-br from-[#059669] to-[#15803d] px-6 pb-16 pt-10">
+            <div className="relative bg-gradient-to-br from-accent to-primary px-6 pb-16 pt-10">
               <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
               <button
                 onClick={onClose}
@@ -84,8 +84,8 @@ export function InstallDialog({
               </button>
 
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#020817] shadow-card">
-                  <Leaf className="h-10 w-10 text-[#4ade80]" />
+                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-background shadow-card">
+                  <Leaf className="h-10 w-10 text-chart-4" />
                 </div>
                 <h2 className="mt-4 text-xl font-semibold">ثبّت PhytoScan</h2>
                 <p className="mt-1 text-sm text-white/80">
@@ -95,14 +95,14 @@ export function InstallDialog({
             </div>
 
             {/* Body overlaps the header via negative margin */}
-            <div className="relative -mt-8 rounded-t-[2rem] bg-[#020817] px-6 pb-6 pt-8">
+            <div className="relative -mt-8 rounded-t-[2rem] bg-background px-6 pb-6 pt-8">
               <div className="grid grid-cols-3 gap-3">
                 {FEATURES.map((f) => (
                   <div
                     key={f.label}
                     className="flex flex-col items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.03] px-2 py-3 text-center"
                   >
-                    <f.icon className="h-5 w-5 text-[#4ade80]" />
+                    <f.icon className="h-5 w-5 text-chart-4" />
                     <span className="text-xs font-semibold text-white">
                       {f.label}
                     </span>
@@ -116,7 +116,7 @@ export function InstallDialog({
               <div className="mt-6 flex gap-3">
                 <button
                   onClick={installing}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#15803d] px-5 py-3 text-sm font-semibold text-white transition-transform hover:bg-[#166534] active:scale-[0.98]"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition-transform hover:bg-primary/90 active:scale-[0.98]"
                 >
                   <Download className="h-4 w-4" />
                   تثبيت الآن

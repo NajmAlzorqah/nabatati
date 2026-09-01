@@ -40,7 +40,7 @@ export function CameraView({ onCapture, onOpenPassport, error }: CameraViewProps
   );
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center bg-[#020817]">
+    <div className="relative flex min-h-[100dvh] flex-col items-center justify-center bg-background">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -59,7 +59,7 @@ export function CameraView({ onCapture, onOpenPassport, error }: CameraViewProps
         <div className="h-[min(78%,80vw)] w-[min(78%,80vw)] rounded-[2rem] border-2 border-white/40 sm:h-[78%] sm:w-[min(78%,22rem)]" />
       </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#020817] via-[#020817]/70 to-transparent pb-6 pt-20">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background via-background/70 to-transparent pb-6 pt-20">
           <div className="flex items-center justify-center gap-6 px-6">
             <Button
               variant="ghost"
@@ -76,7 +76,7 @@ export function CameraView({ onCapture, onOpenPassport, error }: CameraViewProps
               aria-label="التقاط صورة"
               className="pointer-events-auto rounded-full border-4 border-white bg-white/20 p-1"
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#15803d]">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-primary">
                 <Camera className="h-7 w-7" />
               </span>
             </motion.button>

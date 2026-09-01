@@ -27,8 +27,6 @@ export const PlantAnalysisSchema = z.object({
 
 export type PlantAnalysis = z.infer<typeof PlantAnalysisSchema>;
 
-export type ScanState = "idle" | "uploading" | "analyzing" | "result";
-
 export type ScanResult = {
   id: string;
   imageUrl: string;

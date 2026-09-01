@@ -159,7 +159,9 @@ type PlantRow = {
 };
 
 function toScanResult(row: PlantRow): ScanResult {
-  const a = (row.analysis_json ?? {}) as PlantAnalysis;
+  // analysis_json may be missing or partially populated for old/malformed
+  // rows; treat it as a sloppy object the callers fall back through.
+  const a = (row.analysis_json ?? {}) as Partial<PlantAnalysis>;
   return {
     id: row.id,
     imageUrl: row.image_url ?? "",
