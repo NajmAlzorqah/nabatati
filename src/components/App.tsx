@@ -5,9 +5,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, BookOpen, Moon, ScanLine, Sun } from "lucide-react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { useScanFlow } from "@/hooks/useScanFlow";
 import { useTheme } from "@/components/theme-provider";
 import { CameraView } from "@/components/camera/CameraView";
+import { Onboarding } from "@/components/onboarding/Onboarding";
 import { LightMeter } from "@/components/light/LightMeter";
 import { AnalysisResult } from "@/components/scan/AnalysisResult";
 import { PlantPassport } from "@/components/passport/PlantPassport";
@@ -17,6 +19,7 @@ import type { ScanResult } from "@/lib/types";
 
 export function App() {
   const { theme, toggle } = useTheme();
+  const { ready, done: onboarded, complete: completeOnboarding } = useOnboarding();
   const { coords, request: requestLocation } = useGeolocation();
   const { current, stack, push, pop, resetToCamera } = useNavigation();
 
@@ -108,6 +111,22 @@ export function App() {
   const analyzing = phase === "uploading" || phase === "analyzing";
 
   const showBackOnResult = current.name === "result" && stack.length > 1;
+
+  // Wait for hydration before deciding which screen to show, so server and
+  // client render identically (avoids a hydration mismatch from localStorage).
+  if (!ready) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-background text-foreground" />
+    );
+  }
+
+  if (!onboarded) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-background text-foreground">
+        <Onboarding onComplete={completeOnboarding} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] w-full bg-background text-foreground">
