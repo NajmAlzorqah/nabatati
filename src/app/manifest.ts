@@ -5,8 +5,8 @@ const BACKGROUND = "#020817";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PhytoScan - رفيق صحة نباتاتك",
-    short_name: "PhytoScan",
+    name: "نباتاتي - رفيق صحة نباتاتك",
+    short_name: "نباتاتي",
     description:
       "صوّر نبتة لتحديد نوعها وتقييم صحّتها والحصول على إرشادات العناية المناسبة. رفيق صحة نباتاتك على هاتفك.",
     lang: "ar",

@@ -25,14 +25,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PhytoScan",
+  title: "نباتاتي",
   description:
     "صوّر نبتة لتحديد نوعها وتقييم صحّتها والحصول على إرشادات العناية المناسبة — رفيق صحة نباتاتك.",
   manifest: "/manifest.webmanifest",
-  applicationName: "PhytoScan",
+  applicationName: "نباتاتي",
   appleWebApp: {
     capable: true,
-    title: "PhytoScan",
+    title: "نباتاتي",
     statusBarStyle: "black-translucent",
   },
   formatDetection: {

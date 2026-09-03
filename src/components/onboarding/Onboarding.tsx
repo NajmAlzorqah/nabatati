@@ -51,7 +51,7 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
           <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary">
             <span className="h-3 w-3 rounded-full bg-emerald-300" />
           </span>
-          <span>PhytoScan</span>
+          <span>نباتاتي</span>
         </span>
         {!isLast && (
           <button

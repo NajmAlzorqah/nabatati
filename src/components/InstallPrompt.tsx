@@ -93,7 +93,7 @@ export function InstallPrompt() {
       >
         <div className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-border bg-popover p-4 shadow-card">
           <div className="flex-1 text-sm">
-            <p className="font-semibold text-foreground">ثبّت PhytoScan على شاشتك الرئيسية</p>
+            <p className="font-semibold text-foreground">ثبّت نباتاتي على شاشتك الرئيسية</p>
             <p className="mt-1 text-muted-foreground">
               اضغط زر المشاركة{" "}
               <span

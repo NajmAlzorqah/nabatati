@@ -50,7 +50,7 @@ export function InstallDialog({
           transition={{ duration: 0.2 }}
           role="dialog"
           aria-modal="true"
-          aria-label="تثبيت PhytoScan"
+          aria-label="تثبيت نباتاتي"
         >
           {/* Backdrop */}
           <button
@@ -87,7 +87,7 @@ export function InstallDialog({
                 <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-background shadow-card">
                   <Leaf className="h-10 w-10 text-chart-4" />
                 </div>
-                <h2 className="mt-4 text-xl font-semibold">ثبّت PhytoScan</h2>
+                <h2 className="mt-4 text-xl font-semibold">ثبّت نباتاتي</h2>
                 <p className="mt-1 text-sm text-white/80">
                   أضف رفيق صحة نباتاتك إلى شاشتك الرئيسية
                 </p>

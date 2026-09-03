@@ -267,7 +267,7 @@ export function App() {
                       رجوع
                     </button>
                   )}
-                  <span className="text-primary">PhytoScan</span>
+                  <span className="text-primary">نباتاتي</span>
                 </div>
                 <button
                   onClick={toggle}
