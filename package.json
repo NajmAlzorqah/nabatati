@@ -1,12 +1,39 @@
 {
-  "name": "plant-detector",
+  "name": "nabatati",
   "version": "0.1.0",
   "private": true,
+  "description": "نباتاتي — an Arabic RTL PWA that identifies a plant from a photo, assesses its health, and gives care guidance with an AI plant doctor.",
+  "keywords": [
+    "pwa",
+    "plants",
+    "plant-identification",
+    "nextjs",
+    "react",
+    "arabic",
+    "rtl",
+    "supabase",
+    "n8n",
+    "ai"
+  ],
+  "homepage": "https://nabatati.vercel.app",
+  "bugs": {
+    "url": "https://github.com/NajmAlzorqah/nabatati/issues"
+  },
+  "license": "MIT",
+  "author": "Najm Alzorqah",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NajmAlzorqah/nabatati.git"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
