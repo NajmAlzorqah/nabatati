@@ -3,8 +3,8 @@ import { statusString, toxicityString } from "./analysis";
 import { randomId } from "./utils";
 import type { ChatMessage, PlantAnalysis, ScanResult } from "./types";
 
-const LS_SCANS_KEY = "phytoscan-scans";
-const LS_CHAT_PREFIX = "phytoscan-chat-";
+const LS_SCANS_KEY = "nabatati-scans";
+const LS_CHAT_PREFIX = "nabatati-chat-";
 
 type ScanInsert = Omit<ScanResult, "id" | "createdAt"> & { id: string; createdAt: string };
 

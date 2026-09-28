@@ -1,4 +1,4 @@
--- PhytoScan Supabase schema
+-- نباتاتي (nabatati) Supabase schema
 -- Run in the Supabase SQL editor, then create the public "plant-photos" Storage bucket.
 
 create extension if not exists "pgcrypto";

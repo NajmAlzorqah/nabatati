@@ -1,4 +1,4 @@
-/* PhytoScan service worker
+/* نباتاتي (nabatati) service worker
  *
  * Minimal, App-Router-safe strategy:
  *  - PRE_CACHE  : immutable, hashed build assets under /_next/static + the
@@ -13,7 +13,7 @@
  * array stays readable here while generating clean URLs.
  */
 
-const CACHE = "phytoscan-v1";
+const CACHE = "nabatati-v1";
 
 // Precached immutable static assets and the offline fallback. The full list of
 // hashed chunks is added dynamically at runtime (see the fetch handler); here

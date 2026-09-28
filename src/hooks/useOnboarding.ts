@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-const STORAGE_KEY = "phytoscan-onboarded";
+const STORAGE_KEY = "nabatati-onboarded";
 
 export function useOnboarding() {
   // `ready` guards the first render so the server HTML and the client's first

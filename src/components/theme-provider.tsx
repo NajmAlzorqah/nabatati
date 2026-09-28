@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 type Theme = "dark" | "light";
 
-const STORAGE_KEY = "phytoscan-theme";
+const STORAGE_KEY = "nabatati-theme";
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
