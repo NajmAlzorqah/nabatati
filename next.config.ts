@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
-  allowedDevOrigins: ['192.168.1.10'],
+  // Testing the camera on a real phone over your local Wi-Fi? Add your
+  // machine's LAN IP here, e.g. allowedDevOrigins: ["192.168.1.10"].
   async headers() {
     return [
       {
