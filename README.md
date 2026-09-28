@@ -64,25 +64,6 @@ The webhooks are called from the browser, hence the `NEXT_PUBLIC_` prefix — Ne
 
 ---
 
-## ⚠️ Migrating from the old `phytoscan-*` webhook paths
-
-The n8n webhook paths were renamed when the project was renamed to `nabatati`:
-
-| Old path | New path |
-|---|---|
-| `phytoscan-analyze` | `nabatati-analyze` |
-| `phytoscan-chat` | `nabatati-chat` |
-
-**If you already have these workflows deployed, do these three things in the same window** or the live app will start returning "not configured":
-
-1. Re-import both workflow JSON files from `docs/n8n/` into n8n.
-2. Re-attach the credentials to the NVIDIA / OpenRouter / Weather nodes.
-3. Update `NEXT_PUBLIC_N8N_WEBHOOK_URL` and `NEXT_PUBLIC_N8N_CHAT_WEBHOOK_URL` in your Vercel project to the new `/webhook/nabatati-*` paths, then redeploy.
-
-Browser storage keys were renamed too (`phytoscan-theme`, `phytoscan-onboarded`, `phytoscan-scans`, `phytoscan-chat-*` → `nabatati-*`). This means existing installs will see the onboarding again and will not find `localStorage`-mode scans. Supabase-backed history is unaffected — it lives in the database.
-
----
-
 ## Backend setup (n8n)
 
 The app is frontend-only. The AI lives behind two n8n webhooks, each driven by an **n8n AI Agent** node with a vision chat model.
